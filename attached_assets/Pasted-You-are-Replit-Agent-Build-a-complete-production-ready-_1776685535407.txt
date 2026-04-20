@@ -1,0 +1,78 @@
+You are Replit Agent. Build a complete, production-ready full-stack web application called **ScholarForge** – a neutral research collaboration platform where scholars can create, manage, and collaborate on research projects.
+
+### TECH STACK (use exactly this)
+- Next.js 15 (App Router) with TypeScript
+- Tailwind CSS + shadcn/ui + Framer Motion (for lively animations)
+- Prisma ORM + PostgreSQL (Replit built-in database)
+- Authentication: NextAuth.js v5 (Email/Password + Google OAuth)
+- Real-time: Socket.io (full real-time chat with image upload)
+- State management: Zustand
+- File uploads: Replit App Storage (or Cloudinary if easier)
+- Dark/Light mode with system preference
+
+### CORE CONCEPT
+- Completely neutral platform – no personal branding.
+- Any user can sign up/sign in with email or Google.
+- Creator of a project automatically becomes LEAD.
+- 30-minute inactivity session timeout (auto logout if user is idle).
+
+### DATABASE SCHEMA (Prisma – create prisma/schema.prisma exactly like this)
+```prisma
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  institution   String?
+  researchInterests String?
+  bio           String?
+  role          Role     @default(USER)
+  isOnline      Boolean  @default(false)
+  lastActive    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  projectsLed      ProjectMember[] @relation("LedProjects")
+  projectsMember   ProjectMember[] @relation("MemberProjects")
+  sentInvitations  Invitation[]    @relation("SentInvitations")
+  receivedInvitations Invitation[] @relation("ReceivedInvitations")
+  messages         ChatMessage[]
+  activities       ActivityLog[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  abstract    String?
+  keywords    String[]
+  coverImage  String?  // Project icon / thumbnail
+  status      ProjectStatus @default(DRAFT)
+  visibility  Visibility @default(PRIVATE)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     ProjectMember[]
+  files       ProjectFile[]
+  tasks       Task[]
+  milestones  Milestone[]
+  messages    ChatMessage[]
+  activities  ActivityLog[]
+
+  @@map("projects")
+}
+
+// ... (keep all the other models exactly as in the previous prompt: ProjectMember, Invitation, ProjectFile, Task, Milestone, ChatMessage, ActivityLog)
+
+enum Role { USER ADMIN }
+enum ProjectStatus { DRAFT ONGOING COMPLETED SEEKING_COLLABORATORS }
+enum Visibility { PUBLIC PRIVATE INVITE_ONLY }
+enum MemberRole { LEAD CO_LEAD CONTRIBUTOR VIEWER }
+enum InvitationStatus { PENDING ACCEPTED DECLINED }
+enum TaskStatus { TODO IN_PROGRESS DONE }
