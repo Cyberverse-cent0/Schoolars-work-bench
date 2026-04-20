@@ -27,6 +27,22 @@ router.get("/users", requireAdmin, async (req, res): Promise<void> => {
   res.json(users.map(formatUser));
 });
 
+router.get("/users/directory", requireAuth, async (req, res): Promise<void> => {
+  const users = await db.select({
+    id: usersTable.id,
+    name: usersTable.name,
+    institution: usersTable.institution,
+    researchInterests: usersTable.researchInterests,
+    bio: usersTable.bio,
+    image: usersTable.image,
+    role: usersTable.role,
+    isOnline: usersTable.isOnline,
+    lastActive: usersTable.lastActive,
+    createdAt: usersTable.createdAt,
+  }).from(usersTable).orderBy(usersTable.name);
+  res.json(users);
+});
+
 router.get("/users/change-password", requireAuth, async (_req, res): Promise<void> => {
   res.json({ message: "Use POST" });
 });

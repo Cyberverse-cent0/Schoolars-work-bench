@@ -14,6 +14,7 @@ export const projectsTable = pgTable("projects", {
   description: text("description").notNull(),
   abstract: text("abstract"),
   keywords: text("keywords").array().notNull().default([]),
+  coverImage: text("cover_image"),
   status: projectStatusEnum("status").notNull().default("DRAFT"),
   visibility: visibilityEnum("visibility").notNull().default("PRIVATE"),
   startDate: timestamp("start_date", { withTimezone: true }),

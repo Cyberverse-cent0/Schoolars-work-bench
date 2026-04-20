@@ -2,8 +2,10 @@ import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wo
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { SocketProvider } from "@/contexts/SocketContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AppLayout } from "@/components/AppLayout";
+import { motion, AnimatePresence } from "framer-motion";
 import NotFound from "@/pages/not-found";
 import SignIn from "@/pages/auth/SignIn";
 import SignUp from "@/pages/auth/SignUp";
@@ -13,6 +15,27 @@ import CreateProject from "@/pages/CreateProject";
 import ProjectDetail from "@/pages/project/ProjectDetail";
 import Account from "@/pages/Account";
 import Admin from "@/pages/Admin";
+import ScholarDirectory from "@/pages/ScholarDirectory";
+
+const pageVariants = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -8 },
+};
+
+function AnimatedPage({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      transition={{ duration: 0.2 }}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
@@ -38,7 +61,9 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 
   return (
     <AppLayout>
-      <Component />
+      <AnimatedPage>
+        <Component />
+      </AnimatedPage>
     </AppLayout>
   );
 }
@@ -78,6 +103,7 @@ function Router() {
       <Route path="/projects/:id" component={() => <ProtectedRoute component={ProjectDetail} />} />
       <Route path="/account" component={() => <ProtectedRoute component={Account} />} />
       <Route path="/admin" component={() => <ProtectedRoute component={Admin} />} />
+      <Route path="/scholars" component={() => <ProtectedRoute component={ScholarDirectory} />} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -87,12 +113,14 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <TooltipProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-          <Toaster />
-        </TooltipProvider>
+        <SocketProvider>
+          <TooltipProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Router />
+            </WouterRouter>
+            <Toaster />
+          </TooltipProvider>
+        </SocketProvider>
       </AuthProvider>
     </ThemeProvider>
   );

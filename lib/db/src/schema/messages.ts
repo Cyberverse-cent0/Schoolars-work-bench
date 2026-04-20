@@ -7,6 +7,8 @@ export const chatMessagesTable = pgTable("chat_messages", {
   projectId: text("project_id").notNull(),
   userId: text("user_id").notNull(),
   message: text("message").notNull(),
+  imageUrl: text("image_url"),
+  reactions: text("reactions").default("{}"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { apiFetch } from "@/hooks/useApi";
-import { Separator } from "@/components/ui/separator";
+import confetti from "canvas-confetti";
 
 interface Project {
   id: string;
@@ -18,12 +18,24 @@ interface Project {
   status: string;
   visibility: string;
   tags?: string[];
-  fundingInfo?: string;
 }
 
 interface Props {
   project: Project;
   onUpdate: () => void;
+}
+
+function fireConfetti() {
+  const count = 200;
+  const defaults = { origin: { y: 0.7 } };
+  function fire(particleRatio: number, opts: confetti.Options) {
+    confetti({ ...defaults, ...opts, particleCount: Math.floor(count * particleRatio) });
+  }
+  fire(0.25, { spread: 26, startVelocity: 55 });
+  fire(0.2, { spread: 60 });
+  fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+  fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+  fire(0.1, { spread: 120, startVelocity: 45 });
 }
 
 export function ProjectSettings({ project, onUpdate }: Props) {
@@ -45,6 +57,8 @@ export function ProjectSettings({ project, onUpdate }: Props) {
     setLoading(true);
     setError("");
     setSuccess(false);
+    const wasCompleted = project.status === "COMPLETED";
+    const isNowCompleted = form.status === "COMPLETED";
     try {
       const keywords = form.keywords ? form.keywords.split(",").map((t) => t.trim()).filter(Boolean) : [];
       await apiFetch(`/api/projects/${project.id}`, {
@@ -53,6 +67,9 @@ export function ProjectSettings({ project, onUpdate }: Props) {
       });
       setSuccess(true);
       onUpdate();
+      if (!wasCompleted && isNowCompleted) {
+        setTimeout(fireConfetti, 300);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -80,7 +97,11 @@ export function ProjectSettings({ project, onUpdate }: Props) {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">{error}</div>}
-            {success && <div className="text-sm text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400 p-3 rounded-md">Settings saved successfully!</div>}
+            {success && (
+              <div className="text-sm text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400 p-3 rounded-md">
+                {form.status === "COMPLETED" ? "🎉 Project marked as completed!" : "Settings saved successfully!"}
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label>Title</Label>
@@ -100,11 +121,10 @@ export function ProjectSettings({ project, onUpdate }: Props) {
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="PLANNING">Planning</SelectItem>
-                    <SelectItem value="ACTIVE">Active</SelectItem>
-                    <SelectItem value="ON_HOLD">On Hold</SelectItem>
-                    <SelectItem value="COMPLETED">Completed</SelectItem>
-                    <SelectItem value="ARCHIVED">Archived</SelectItem>
+                    <SelectItem value="DRAFT">Draft</SelectItem>
+                    <SelectItem value="ONGOING">Ongoing</SelectItem>
+                    <SelectItem value="SEEKING_COLLABORATORS">Seeking Collaborators</SelectItem>
+                    <SelectItem value="COMPLETED">Completed 🎉</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -115,14 +135,14 @@ export function ProjectSettings({ project, onUpdate }: Props) {
                   <SelectContent>
                     <SelectItem value="PUBLIC">Public</SelectItem>
                     <SelectItem value="PRIVATE">Private</SelectItem>
-                    <SelectItem value="INSTITUTION">Institution</SelectItem>
+                    <SelectItem value="INVITE_ONLY">Invite Only</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-1.5">
               <Label>Keywords (comma-separated)</Label>
-              <Input value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} placeholder="neuroscience, ML" />
+              <Input value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} placeholder="neuroscience, ML, genomics" />
             </div>
             <Button type="submit" disabled={loading}>{loading ? "Saving..." : "Save Changes"}</Button>
           </form>

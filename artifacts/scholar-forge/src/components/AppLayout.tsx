@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "./ThemeProvider";
+import { NotificationBell } from "./NotificationBell";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { theme, setTheme } = useTheme();
@@ -12,7 +13,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <Sidebar />
       </div>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="flex-shrink-0 h-14 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-end px-6 gap-3">
+        <header className="flex-shrink-0 h-14 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-end px-6 gap-2">
+          <NotificationBell />
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"

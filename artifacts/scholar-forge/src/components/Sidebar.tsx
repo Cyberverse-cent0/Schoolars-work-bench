@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import {
   LayoutDashboard, FolderOpen, Search, Plus, User, Shield, LogOut,
-  BookOpen, ChevronLeft, ChevronRight, Menu, X
+  BookOpen, ChevronLeft, ChevronRight, Menu, X, Users2
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/projects?myProjects=true", label: "My Projects", icon: FolderOpen },
   { to: "/projects", label: "Discover Projects", icon: Search },
+  { to: "/scholars", label: "Scholar Directory", icon: Users2 },
 ];
 
 export function Sidebar() {

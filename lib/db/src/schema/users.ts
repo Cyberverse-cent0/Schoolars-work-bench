@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -14,6 +14,8 @@ export const usersTable = pgTable("users", {
   researchInterests: text("research_interests"),
   bio: text("bio"),
   role: roleEnum("role").notNull().default("USER"),
+  isOnline: boolean("is_online").notNull().default(false),
+  lastActive: timestamp("last_active", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
