@@ -2,6 +2,7 @@ import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wo
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ActivityProvider } from "@/contexts/ActivityContext";
 import { SocketProvider } from "@/contexts/SocketContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AppLayout } from "@/components/AppLayout";
@@ -117,14 +118,16 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <SocketProvider>
-          <TooltipProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <Router />
-            </WouterRouter>
-            <Toaster />
-          </TooltipProvider>
-        </SocketProvider>
+        <ActivityProvider>
+          <SocketProvider>
+            <TooltipProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <Router />
+              </WouterRouter>
+              <Toaster />
+            </TooltipProvider>
+          </SocketProvider>
+        </ActivityProvider>
       </AuthProvider>
     </ThemeProvider>
   );

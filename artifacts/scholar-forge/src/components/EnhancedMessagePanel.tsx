@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, X, MessageSquare, Search, Paperclip, Smile, Phone, Video, MoreVertical } from "lucide-react";
+import { Send, X, MessageSquare, Search, Paperclip, Smile, Phone, Video, MoreVertical, Bug, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -52,6 +52,8 @@ export function EnhancedMessagePanel({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debugMode, setDebugMode] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -90,10 +92,22 @@ export function EnhancedMessagePanel({
       return;
     }
 
+    if (!token) {
+      setError("Authentication token missing");
+      return;
+    }
+
     setSending(true);
     setError("");
+    setConnectionStatus('sending');
 
     try {
+      console.log("[DEBUG] Sending message:", {
+        recipientId,
+        content: message.trim(),
+        timestamp: new Date().toISOString()
+      });
+
       const response = await fetch("/api/messages/send", {
         method: "POST",
         headers: {
@@ -106,15 +120,29 @@ export function EnhancedMessagePanel({
         }),
       });
 
+      console.log("[DEBUG] Message send response:", {
+        status: response.status,
+        ok: response.ok,
+        statusText: response.statusText
+      });
+
       if (!response.ok) {
         const err = await response.json().catch(() => ({ error: "Failed to send message" }));
-        throw new Error(err.error || "Failed to send message");
+        console.error("[ERROR] Message send failed:", err);
+        setError(err.error || "Failed to send message");
+        setConnectionStatus('error');
+      } else {
+        const result = await response.json();
+        console.log("[DEBUG] Message sent successfully:", result);
+        setConnectionStatus('connected');
       }
 
       setMessage("");
       refetch(); // Refresh messages
     } catch (err: any) {
+      console.error("[ERROR] Exception in handleSendMessage:", err);
       setError(err.message || "Failed to send message");
+      setConnectionStatus('error');
     } finally {
       setSending(false);
     }
@@ -141,7 +169,7 @@ export function EnhancedMessagePanel({
         className="absolute right-0 top-0 h-full w-full max-w-md bg-background border-l shadow-xl flex flex-col"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-3">
             <Avatar className="w-10 h-10">
               <AvatarImage src={recipientImage || undefined} alt={recipientName} />
@@ -149,7 +177,21 @@ export function EnhancedMessagePanel({
             </Avatar>
             <div>
               <h3 className="font-semibold text-foreground">{recipientName}</h3>
-              <p className="text-xs text-muted-foreground">Active now</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">
+                  {connectionStatus === 'connected' ? 'Active now' : connectionStatus}
+                </p>
+                {debugMode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDebugMode(!debugMode)}
+                    className="ml-2"
+                  >
+                    <Bug className="w-3 h-3" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -232,15 +274,50 @@ export function EnhancedMessagePanel({
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Debug Panel */}
+        {debugMode && (
+          <div className="px-4 py-2 bg-blue-50 border-t border-blue-200">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium text-blue-800">Debug Mode</h4>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDebugMode(false)}
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            </div>
+            <div className="text-xs text-blue-700 space-y-1">
+              <p><strong>Connection Status:</strong> {connectionStatus}</p>
+              <p><strong>Messages Count:</strong> {messages?.length || 0}</p>
+              <p><strong>Recipient ID:</strong> {recipientId}</p>
+              <p><strong>Current User ID:</strong> {user?.id}</p>
+              <p><strong>Token Present:</strong> {token ? 'Yes' : 'No'}</p>
+            </div>
+          </div>
+        )}
+
         {/* Error Message */}
         {error && (
           <div className="px-4 py-2 bg-destructive/10 border-t border-destructive/20">
-            <p className="text-sm text-destructive">{error}</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-destructive" />
+                <p className="text-sm text-destructive">{error}</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setError("")}
+              >
+                Clear
+              </Button>
+            </div>
           </div>
         )}
 
         {/* Message Input */}
-        <div className="p-4 border-t">
+        <div className="p-4 border-t border-border">
           <div className="flex items-end gap-2">
             <Button variant="ghost" size="sm" className="shrink-0">
               <Paperclip className="w-4 h-4" />

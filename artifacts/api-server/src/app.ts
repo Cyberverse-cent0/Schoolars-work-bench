@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { inactivityMiddleware, cleanupInactiveUsers } from "./middleware/inactivityMiddleware";
 
 const app: Express = express();
 
@@ -49,6 +50,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+// Apply inactivity middleware
+app.use(inactivityMiddleware);
+
 // Health check endpoint for debugging
 app.get("/api/health", (_req, res) => {
   res.json({ 
@@ -59,6 +63,9 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api", router);
+
+// Start cleanup interval for inactive users
+setInterval(cleanupInactiveUsers, 60 * 60 * 1000); // Run every hour
 
 // 404 handler
 app.use((req: Request, res: Response) => {

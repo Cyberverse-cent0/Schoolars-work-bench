@@ -64,6 +64,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Handle server-initiated logout (inactivity timeout)
+  useEffect(() => {
+    const checkForAutoLogout = () => {
+      // Check if user was logged out due to inactivity
+      const currentToken = localStorage.getItem(TOKEN_KEY);
+      if (!currentToken && token) {
+        console.log("Server logged out user due to inactivity");
+        doLogout();
+      }
+    };
+
+    // Check every 30 seconds for automatic logout
+    const interval = setInterval(checkForAutoLogout, 30000);
+    
+    return () => clearInterval(interval);
+  }, [token]);
+
   useEffect(() => {
     setAuthTokenGetter(() => localStorage.getItem(TOKEN_KEY));
   }, []);

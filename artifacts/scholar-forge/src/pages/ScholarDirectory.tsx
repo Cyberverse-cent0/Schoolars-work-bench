@@ -38,6 +38,15 @@ export default function ScholarDirectory() {
 
   const filtered = scholars?.filter((s) => {
     const q = search.toLowerCase();
+    // Only show scholars (role === "SCHOLAR") to normal users
+    const isCurrentUserScholar = user?.role === "SCHOLAR";
+    const isUserScholar = s.role === "SCHOLAR";
+    
+    // Normal users can only see scholars, not regular users
+    if (!isCurrentUserScholar && !isUserScholar) {
+      return false;
+    }
+    
     return (
       s.name.toLowerCase().includes(q) ||
       s.institution?.toLowerCase().includes(q) ||
@@ -74,7 +83,9 @@ export default function ScholarDirectory() {
       ) : !filtered?.length ? (
         <div className="text-center py-20 text-center">
           <GraduationCap className="w-12 h-12 mx-auto mb-3 opacity-30 text-slate-400" />
-          <p className="text-sm text-slate-600">No scholars found</p>
+          <p className="text-sm text-slate-600">
+            {user?.role === "SCHOLAR" ? "No scholars found" : "Only scholars can view this directory"}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
