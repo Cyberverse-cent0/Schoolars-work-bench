@@ -74,9 +74,30 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    target: "esnext",
+    minify: "terser",
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom"],
+          ui: ["@radix-ui/react-*"],
+          utils: ["date-fns", "framer-motion"],
+        },
+      },
+    },
+    optimizeDeps: {
+      include: ["react", "react-dom"],
+    },
+  },
   preview: {
     port,
     host: "0.0.0.0",
     allowedHosts: true,
+  },
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
 });

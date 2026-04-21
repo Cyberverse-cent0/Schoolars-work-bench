@@ -5,9 +5,23 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "build": "vite build --config vite.config.ts",
+    "build": "vite build --config vite.config.ts --mode production",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build:check": "npm run typecheck && npm run build",
+    "build:analyze": "npm run build && npx vite-bundle-analyzer dist",
+    "start": "npm run dev",
+    "preview": "npm run serve",
+    "clean": "rm -rf dist node_modules/.vite",
+    "clean:full": "npm run clean && npm install",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext ts,tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,md}\"",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "prepare": "npm run build"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
