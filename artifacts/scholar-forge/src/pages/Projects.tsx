@@ -28,6 +28,7 @@ interface Project {
 }
 
 export default function Projects() {
+  const { user } = useAuth();
   const [location] = useLocation();
   const params = new URLSearchParams(location.includes("?") ? location.split("?")[1] : "");
   const initialMine = params.get("myProjects") === "true";
@@ -53,11 +54,13 @@ export default function Projects() {
           <h1 className="text-2xl font-serif font-semibold text-foreground">Research Projects</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Discover and manage collaborative research</p>
         </div>
-        <Link to="/projects/create">
-          <Button className="gap-2" data-testid="button-new-project">
-            <Plus className="w-4 h-4" /> New Project
-          </Button>
-        </Link>
+        {user?.role === "ADMIN" && (
+          <Link to="/projects/create">
+            <Button className="gap-2" data-testid="button-new-project">
+              <Plus className="w-4 h-4" /> New Project
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Filters */}
@@ -103,13 +106,15 @@ export default function Projects() {
           <FolderOpen className="w-12 h-12 text-muted-foreground/30 mb-4" />
           <h3 className="text-base font-medium text-foreground">No projects found</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            {search ? "Try adjusting your search filters" : "Be the first to create a project"}
+            {search ? "Try adjusting your search filters" : user?.role === "ADMIN" ? "Be the first to create a project" : "No projects available yet"}
           </p>
-          <Link to="/projects/create">
-            <Button className="mt-4 gap-2" variant="outline">
-              <Plus className="w-4 h-4" /> Create Project
-            </Button>
-          </Link>
+          {user?.role === "ADMIN" && (
+            <Link to="/projects/create">
+              <Button className="mt-4 gap-2" variant="outline">
+                <Plus className="w-4 h-4" /> Create Project
+              </Button>
+            </Link>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

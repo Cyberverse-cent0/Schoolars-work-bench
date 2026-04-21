@@ -43,21 +43,23 @@ export function Sidebar() {
 
       <Separator className="bg-sidebar-border" />
 
-      {/* Create Button */}
-      <div className={cn("px-3 py-3", collapsed && "px-2")}>
-        <Link to="/projects/create" onClick={() => setMobileOpen(false)}>
-          <Button
-            className={cn(
-              "w-full bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 gap-2",
-              collapsed && "px-2"
-            )}
-            data-testid="button-create-project"
-          >
-            <Plus className="w-4 h-4 flex-shrink-0" />
-            {!collapsed && <span>New Project</span>}
-          </Button>
-        </Link>
-      </div>
+      {/* Create Button - Admin only */}
+      {user?.role === "ADMIN" && (
+        <div className={cn("px-3 py-3", collapsed && "px-2")}>
+          <Link to="/projects/create" onClick={() => setMobileOpen(false)}>
+            <Button
+              className={cn(
+                "w-full bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 gap-2",
+                collapsed && "px-2"
+              )}
+              data-testid="button-create-project"
+            >
+              <Plus className="w-4 h-4 flex-shrink-0" />
+              {!collapsed && <span>New Project</span>}
+            </Button>
+          </Link>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 px-2 py-2 space-y-1 overflow-y-auto">
