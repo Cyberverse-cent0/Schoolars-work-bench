@@ -5,6 +5,7 @@ import {
   projectMembersTable,
   tasksTable,
   activityLogsTable,
+  milestonesTable,
   usersTable,
 } from "@workspace/db";
 import { eq, and, or, count, inArray, ilike, sql } from "drizzle-orm";
@@ -82,11 +83,42 @@ router.get("/projects", requireAuth, async (req, res): Promise<void> => {
   const results = await Promise.all(projects.map(async (p) => {
     const [{ mc }] = await db.select({ mc: count() }).from(projectMembersTable).where(eq(projectMembersTable.projectId, p.id));
     const [{ tc }] = await db.select({ tc: count() }).from(tasksTable).where(eq(tasksTable.projectId, p.id));
+    
+    // Get recent activity for this project
+    const [recentActivity] = await db.select()
+      .from(activityLogsTable)
+      .where(eq(activityLogsTable.projectId, p.id))
+      .orderBy(activityLogsTable.createdAt)
+      .limit(5);
+    
+    // Get milestones for this project
+    const [completedMilestones] = await db.select()
+      .from(milestonesTable)
+      .where(and(
+        eq(milestonesTable.projectId, p.id),
+        eq(milestonesTable.status, "COMPLETED")
+      ));
+    
+    const totalMilestones = await db.select()
+      .from(milestonesTable)
+      .where(eq(milestonesTable.projectId, p.id));
+    
+    const recentActivityText = recentActivity.length > 0 
+      ? recentActivity[0]?.action 
+        ? `${recentActivity[0]?.action} by ${recentActivity[0]?.user?.name || 'Someone'}`
+        : "Recent activity available"
+      : null;
+    
     return {
       ...p,
       memberCount: Number(mc),
       taskCount: Number(tc),
       currentUserRole: memberProjectIds.get(p.id) ?? null,
+      recentActivity: recentActivityText,
+      milestones: {
+        total: totalMilestones.length,
+        completed: completedMilestones.length
+      }
     };
   }));
 
@@ -97,9 +129,9 @@ router.post("/projects", requireAuth, async (req, res): Promise<void> => {
   const user = getCurrentUser(req);
   const { title, description, abstract, keywords, status, visibility, startDate, endDate } = req.body;
 
-  // Restrict project creation to admin users only
-  if (user.role !== "ADMIN") {
-    res.status(403).json({ error: "Only administrators can create projects" });
+  // Restrict project creation to admin and scholar users
+  if (user.role !== "ADMIN" && user.role !== "SCHOLAR") {
+    res.status(403).json({ error: "Only administrators and scholars can create projects" });
     return;
   }
 

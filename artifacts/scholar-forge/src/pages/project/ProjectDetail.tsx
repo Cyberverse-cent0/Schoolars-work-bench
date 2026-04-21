@@ -51,6 +51,7 @@ export default function ProjectDetail() {
   const memberInfo = memberRole ? { role: memberRole } : null;
   const isLead = memberRole === "LEAD" || memberRole === "CO_LEAD";
   const canEdit = isLead || user?.role === "ADMIN";
+  const canChat = memberRole !== "VIEWER" && memberRole !== null; // Only team members can chat
 
   if (loading) {
     return (
@@ -119,7 +120,7 @@ export default function ProjectDetail() {
           <TabsTrigger value="milestones">Milestones</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
-          <TabsTrigger value="chat">Chat</TabsTrigger>
+          {canChat && <TabsTrigger value="chat">Chat</TabsTrigger>}
           <TabsTrigger value="activity">Activity</TabsTrigger>
           {canEdit && <TabsTrigger value="settings">Settings</TabsTrigger>}
         </TabsList>
@@ -139,9 +140,11 @@ export default function ProjectDetail() {
         <TabsContent value="files" className="mt-4">
           <ProjectFiles projectId={id!} canEdit={!!memberInfo?.role && memberInfo.role !== "VIEWER"} />
         </TabsContent>
-        <TabsContent value="chat" className="mt-4">
-          <ProjectChat projectId={id!} />
-        </TabsContent>
+        {canChat && (
+          <TabsContent value="chat" className="mt-4">
+            <ProjectChat projectId={id!} />
+          </TabsContent>
+        )}
         <TabsContent value="activity" className="mt-4">
           <ProjectActivity projectId={id!} />
         </TabsContent>

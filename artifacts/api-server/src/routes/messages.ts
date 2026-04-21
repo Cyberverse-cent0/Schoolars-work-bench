@@ -1,7 +1,11 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { chatMessagesTable, usersTable } from "@workspace/db";
-import { eq, lt, desc } from "drizzle-orm";
+import { 
+  chatMessagesTable, 
+  usersTable, 
+  directMessagesTable 
+} from "@workspace/db";
+import { eq, lt, desc, or, and } from "drizzle-orm";
 import { requireAuth, getCurrentUser } from "../lib/auth";
 import { formatUser } from "./auth";
 import { nanoid } from "../lib/nanoid";
@@ -72,36 +76,96 @@ router.post("/messages/send", requireAuth, async (req: Request, res: Response): 
       return;
     }
 
-    // For now, we'll create a simple message record
-    // In a full implementation, you might want a separate direct messages table
-    const messageId = nanoid();
-    
-    // Create a simple message record (you could store this in a direct messages table)
-    const message = {
-      id: messageId,
+    // Store the message in the database
+    const [newMessage] = await db.insert(directMessagesTable).values({
+      id: nanoid(),
       senderId: sender.id,
       recipientId,
       content,
+      isRead: "false",
       createdAt: new Date(),
-      type: "direct"
-    };
+      updatedAt: new Date(),
+    }).returning();
 
-    console.log("Direct message sent:", message);
+    console.log("Direct message stored:", newMessage);
     
-    // For now, just return success
-    // In a real implementation, you would:
-    // 1. Store the message in a database table
-    // 2. Send a real-time notification to the recipient
-    // 3. Update the recipient's unread message count
+    // TODO: In a full implementation, you would:
+    // 1. Send a real-time notification to the recipient via WebSocket
+    // 2. Update the recipient's unread message count
+    // 3. Log the activity
 
     res.status(201).json({ 
       success: true,
       message: "Message sent successfully",
-      messageId
+      messageId: newMessage.id
     });
   } catch (error) {
     console.error("Error sending direct message:", error);
     res.status(500).json({ error: "Failed to send message" });
+  }
+});
+
+// Get conversation history between current user and another user
+router.get("/messages/conversation/:otherUserId", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const currentUser = getCurrentUser(req);
+  const otherUserId = Array.isArray(req.params.otherUserId) ? req.params.otherUserId[0] : req.params.otherUserId;
+
+  if (!otherUserId) {
+    res.status(400).json({ error: "Other user ID is required" });
+    return;
+  }
+
+  try {
+    // Fetch conversation history between current user and other user (both directions)
+    const messages = await db.select()
+      .from(directMessagesTable)
+      .where(
+        or(
+          and(
+            eq(directMessagesTable.senderId, currentUser.id),
+            eq(directMessagesTable.recipientId, otherUserId)
+          ),
+          and(
+            eq(directMessagesTable.senderId, otherUserId),
+            eq(directMessagesTable.recipientId, currentUser.id)
+          )
+        )
+      )
+      .orderBy(directMessagesTable.createdAt);
+
+    // Get user information for sender/recipient
+    const messagesWithUsers = await Promise.all(
+      messages.map(async (msg) => {
+        const [sender] = await db.select().from(usersTable).where(eq(usersTable.id, msg.senderId));
+        const [recipient] = await db.select().from(usersTable).where(eq(usersTable.id, msg.recipientId));
+        
+        return {
+          id: msg.id,
+          senderId: msg.senderId,
+          recipientId: msg.recipientId,
+          content: msg.content,
+          createdAt: msg.createdAt,
+          sender: sender ? {
+            id: sender.id,
+            name: sender.name,
+            email: sender.email,
+            image: sender.image
+          } : null,
+          recipient: recipient ? {
+            id: recipient.id,
+            name: recipient.name,
+            email: recipient.email,
+            image: recipient.image
+          } : null,
+          isRead: msg.isRead === "true"
+        };
+      })
+    );
+    
+    res.json(messagesWithUsers);
+  } catch (error) {
+    console.error("Error fetching conversation:", error);
+    res.status(500).json({ error: "Failed to fetch conversation" });
   }
 });
 

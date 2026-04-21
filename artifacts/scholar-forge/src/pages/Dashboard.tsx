@@ -107,9 +107,13 @@ export default function Dashboard() {
               <div className="text-center py-8 text-muted-foreground text-sm">
                 <FolderOpen className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 No projects yet.{" "}
-                <Link to="/projects/create">
-                  <span className="text-primary hover:underline cursor-pointer">Create one</span>
-                </Link>
+                {(user?.role === "ADMIN" || user?.role === "SCHOLAR") ? (
+                  <Link to="/projects/create">
+                    <span className="text-primary hover:underline cursor-pointer">Create one</span>
+                  </Link>
+                ) : (
+                  <span className="text-muted-foreground">Contact an administrator to create projects</span>
+                )}
               </div>
             ) : (
               projects?.map((project) => (

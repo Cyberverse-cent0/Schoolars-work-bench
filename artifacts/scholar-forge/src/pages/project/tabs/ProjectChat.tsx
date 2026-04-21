@@ -42,6 +42,29 @@ function parseReactions(raw?: string | null): Record<string, string[]> {
 export function ProjectChat({ projectId }: Props) {
   const { user, token } = useAuth();
   const { socket, joinProject, leaveProject, sendTypingStart, sendTypingStop, sendMessage, addReaction } = useSocket();
+  
+  // Get project details to check user role
+  const { data: project } = useQuery<any>(`/api/projects/${projectId}`);
+  const memberRole = project?.currentUserRole;
+  
+  // Check if user has permission to access chat
+  const canChat = memberRole !== "VIEWER" && memberRole !== null;
+  
+  // Show access denied message for users without chat permissions
+  if (!canChat) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+          <Send className="w-8 h-8 text-muted-foreground" />
+        </div>
+        <h3 className="text-lg font-semibold text-foreground mb-2">Chat Access Restricted</h3>
+        <p className="text-sm text-muted-foreground max-w-md">
+          Only team members can access project chat. Contact a project administrator to get access.
+        </p>
+      </div>
+    );
+  }
+  
   const { data, loading } = useQuery<any>(`/api/projects/${projectId}/messages`);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [content, setContent] = useState("");

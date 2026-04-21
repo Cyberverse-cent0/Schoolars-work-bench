@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, GraduationCap, BookOpen, User, Circle, ExternalLink } from "lucide-react";
+import { Search, GraduationCap, BookOpen, User, Circle, ExternalLink, Mail } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSocket } from "@/contexts/SocketContext";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
+import { EnhancedMessagePanel } from "@/components/EnhancedMessagePanel";
 
 interface Scholar {
   id: string;
@@ -26,6 +27,12 @@ interface Scholar {
 
 export default function ScholarDirectory() {
   const [search, setSearch] = useState("");
+  const [messagePanel, setMessagePanel] = useState<{ isOpen: boolean; recipientId: string; recipientName: string; recipientImage?: string | null }>({
+    isOpen: false,
+    recipientId: "",
+    recipientName: "",
+    recipientImage: null
+  });
   const { data: scholars, loading } = useQuery<Scholar[]>("/api/users/directory");
   const { onlineUsers } = useSocket();
 
@@ -41,32 +48,33 @@ export default function ScholarDirectory() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div>
-        <h1 className="text-2xl font-serif font-semibold text-foreground">Scholar Directory</h1>
+        <h1 className="text-2xl font-serif font-semibold text-foreground">Scholars Directory</h1>
         <p className="text-muted-foreground text-sm mt-0.5">
-          Discover researchers and potential collaborators
+          Connect with researchers and explore academic collaboration
         </p>
       </div>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search by name, institution, or research area..."
+          placeholder="Search scholars, research areas, or institutions..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
+          className="pl-9 border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-white"
+          data-testid="input-search-scholars"
         />
       </div>
 
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-48 w-full rounded-xl" />
+            <Skeleton key={i} className="h-48 w-full rounded-xl bg-slate-100 dark:bg-slate-800" />
           ))}
         </div>
       ) : !filtered?.length ? (
-        <div className="text-center py-20 text-muted-foreground">
-          <GraduationCap className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">No scholars found</p>
+        <div className="text-center py-20 text-center">
+          <GraduationCap className="w-12 h-12 mx-auto mb-3 opacity-30 text-slate-400" />
+          <p className="text-sm text-slate-600">No scholars found</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -106,7 +114,7 @@ export default function ScholarDirectory() {
                             {scholar.name}
                           </p>
                           {scholar.role === "ADMIN" && (
-                            <Badge variant="secondary" className="text-xs py-0">Admin</Badge>
+                            <Badge variant="secondary" className="text-xs py-0 bg-indigo-100 text-indigo-700 border-indigo-200">Admin</Badge>
                           )}
                         </div>
                         {scholar.institution && (
@@ -117,9 +125,9 @@ export default function ScholarDirectory() {
                         )}
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {isOnline ? (
-                            <span className="text-green-600 dark:text-green-400 font-medium">● Online</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-medium">● Online</span>
                           ) : (
-                            "Offline"
+                            <span className="text-slate-500 dark:text-slate-400">● Offline</span>
                           )}
                         </p>
                       </div>
@@ -137,16 +145,32 @@ export default function ScholarDirectory() {
                     )}
                     
                     {/* Project count and actions */}
-                    <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
-                      <div className="text-xs text-muted-foreground">
+                    <div className="mt-3 pt-3 border-t border-slate-200 flex items-center justify-between">
+                      <div className="text-xs text-slate-600">
                         {scholar.projectCount || 0} {scholar.projectCount === 1 ? 'project' : 'projects'}
                       </div>
-                      <Link href={`/profile/${scholar.id}`}>
-                        <Button variant="outline" size="sm" className="text-xs h-6">
-                          <ExternalLink className="w-3 h-3 mr-1" />
-                          View Profile
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-xs h-6"
+                          onClick={() => setMessagePanel({
+                            isOpen: true,
+                            recipientId: scholar.id,
+                            recipientName: scholar.name,
+                            recipientImage: scholar.image
+                          })}
+                        >
+                          <Mail className="w-3 h-3 mr-1" />
+                          Message
                         </Button>
-                      </Link>
+                        <Link href={`/profile/${scholar.id}`}>
+                          <Button variant="outline" size="sm" className="text-xs h-6 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200">
+                            <ExternalLink className="w-3 h-3 mr-1" />
+                            View Profile
+                          </Button>
+                        </Link>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -155,6 +179,15 @@ export default function ScholarDirectory() {
           })}
         </div>
       )}
+
+      {/* Enhanced Message Panel */}
+      <EnhancedMessagePanel
+        recipientId={messagePanel.recipientId}
+        recipientName={messagePanel.recipientName}
+        recipientImage={messagePanel.recipientImage}
+        onClose={() => setMessagePanel({ ...messagePanel, isOpen: false })}
+        isOpen={messagePanel.isOpen}
+      />
     </div>
   );
 }

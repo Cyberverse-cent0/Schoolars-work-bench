@@ -252,18 +252,18 @@ router.post("/auth/google", async (req, res): Promise<void> => {
 });
 
 export { formatUser };
-// Temporary endpoint to update admin role
+// Temporary endpoint to update user role
 router.post("/auth/make-admin", async (req, res): Promise<void> => {
-  const { email } = req.body;
+  const { email, role } = req.body;
   
-  if (!email) {
-    res.status(400).json({ error: "Email is required" });
+  if (!email || !role) {
+    res.status(400).json({ error: "Email and role are required" });
     return;
   }
 
   try {
     const [updatedUser] = await db.update(usersTable)
-      .set({ role: "ADMIN", updatedAt: new Date() })
+      .set({ role, updatedAt: new Date() })
       .where(eq(usersTable.email, email))
       .returning();
 
@@ -273,7 +273,7 @@ router.post("/auth/make-admin", async (req, res): Promise<void> => {
     }
 
     res.json({ 
-      message: "User role updated to ADMIN",
+      message: `User role updated to ${role}`,
       user: formatUser(updatedUser)
     });
   } catch (error) {

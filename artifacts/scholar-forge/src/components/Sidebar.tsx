@@ -43,8 +43,8 @@ export function Sidebar() {
 
       <Separator className="bg-sidebar-border" />
 
-      {/* Create Button - Admin only */}
-      {user?.role === "ADMIN" && (
+      {/* Create Button - Admin and Scholar */}
+      {(user?.role === "ADMIN" || user?.role === "SCHOLAR") && (
         <div className={cn("px-3 py-3", collapsed && "px-2")}>
           <Link to="/projects/create" onClick={() => setMobileOpen(false)}>
             <Button

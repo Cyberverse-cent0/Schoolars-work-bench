@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatDate, getStatusColor } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EnhancedMessagePanel } from "@/components/EnhancedMessagePanel";
 
 interface Project {
   id: string;
@@ -25,6 +26,9 @@ interface Project {
   createdAt: string;
   updatedAt: string;
   owner?: { name: string; institution?: string };
+  recentActivity?: string;
+  milestones?: { total: number; completed: number };
+  currentUserRole?: string;
 }
 
 export default function Projects() {
@@ -36,6 +40,12 @@ export default function Projects() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [myProjects, setMyProjects] = useState(initialMine);
+  const [messagePanel, setMessagePanel] = useState<{ isOpen: boolean; recipientId: string; recipientName: string; recipientImage?: string | null }>({
+    isOpen: false,
+    recipientId: "",
+    recipientName: "",
+    recipientImage: null
+  });
 
   const queryParams = new URLSearchParams();
   if (search) queryParams.set("search", search);
@@ -43,7 +53,7 @@ export default function Projects() {
   if (myProjects) queryParams.set("myProjects", "true");
 
   const { data, loading } = useQuery<Project[]>(
-    `/api/projects?${queryParams.toString()}`,
+    `/api/projects?${queryParams.toString()}&includeDetails=true`,
     [search, status, myProjects]
   );
 
@@ -54,7 +64,7 @@ export default function Projects() {
           <h1 className="text-2xl font-serif font-semibold text-foreground">Research Projects</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Discover and manage collaborative research</p>
         </div>
-        {user?.role === "ADMIN" && (
+        {(user?.role === "ADMIN" || user?.role === "SCHOLAR") && (
           <Link to="/projects/create">
             <Button className="gap-2" data-testid="button-new-project">
               <Plus className="w-4 h-4" /> New Project
@@ -149,6 +159,23 @@ export default function Projects() {
                     </div>
                   )}
 
+                  {(project as any).recentActivity && (
+                    <div className="mb-3">
+                      <p className="text-xs text-muted-foreground mb-1">Recent Activity</p>
+                      <p className="text-sm text-foreground">{(project as any).recentActivity}</p>
+                    </div>
+                  )}
+
+                  {(project as any).milestones && (
+                    <div className="mb-3">
+                      <p className="text-xs text-muted-foreground mb-1">Milestones</p>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-foreground">{(project as any).milestones.completed}/{(project as any).milestones.total}</span>
+                        <span className="text-muted-foreground"> completed</span>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between mt-auto pt-3 border-t border-border">
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
@@ -171,6 +198,15 @@ export default function Projects() {
           ))}
         </div>
       )}
+
+      {/* Enhanced Message Panel */}
+      <EnhancedMessagePanel
+        recipientId={messagePanel.recipientId}
+        recipientName={messagePanel.recipientName}
+        recipientImage={messagePanel.recipientImage}
+        onClose={() => setMessagePanel({ ...messagePanel, isOpen: false })}
+        isOpen={messagePanel.isOpen}
+      />
     </div>
   );
 }
