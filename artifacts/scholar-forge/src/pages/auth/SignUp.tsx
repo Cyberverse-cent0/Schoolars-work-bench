@@ -7,6 +7,20 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Google Sign-In types
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        id?: {
+          initialize: (config: { client_id: string; callback: (response: any) => void }) => void;
+          renderButton: (element: HTMLElement, config: any) => void;
+        };
+      };
+    };
+  }
+}
+
 export default function SignUp() {
   const { login } = useAuth();
   const [, navigate] = useLocation();
@@ -19,6 +33,7 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleAvailable, setGoogleAvailable] = useState(false);
+  const [yahooLoading, setYahooLoading] = useState(false);
 
   const handleGoogleSuccess = async (response: any) => {
     setGoogleLoading(true);
@@ -62,8 +77,52 @@ export default function SignUp() {
     setError("Google sign up failed. Please try again or use email/password.");
   };
 
+  const handleYahooSignUp = async () => {
+    setYahooLoading(true);
+    setError("");
+    try {
+      // For demo purposes, we'll simulate a Yahoo sign-up
+      // In production, this would use Yahoo OAuth library
+      console.log("[SignUp] Custom Yahoo sign-up initiated");
+      
+      // Simulate a mock Yahoo token
+      const mockYahooToken = "mock-yahoo-token-" + Date.now();
+      
+      // Send token to our backend
+      const res = await fetch("/api/auth/yahoo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: mockYahooToken }),
+      });
+
+      console.log("[SignUp] Yahoo auth response status:", res.status);
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Yahoo sign up failed" }));
+        throw new Error(data.error || "Yahoo sign up failed");
+      }
+
+      const data = await res.json();
+      console.log("[SignUp] Yahoo auth response data:", data);
+      
+      if (!data.token || !data.user) {
+        throw new Error("Invalid response from server");
+      }
+
+      console.log("[SignUp] Custom Yahoo auth success:", data.user);
+      login(data.token, data.user);
+      navigate("/dashboard");
+    } catch (err: any) {
+      const errorMsg = err.message || "Failed to sign up with Yahoo";
+      setError(errorMsg);
+      console.error("[SignUp] Yahoo sign-up error:", err);
+    } finally {
+      setYahooLoading(false);
+    }
+  };
+
   const handleGoogleClick = () => {
-    if (window.google) {
+    if (window.google && window.google.accounts) {
       console.log("[SignUp] Clicking Google Sign-In button");
       window.google.accounts.id.renderButton(
         document.getElementById("google-signup-button")!,
@@ -75,6 +134,8 @@ export default function SignUp() {
           locale: "en",
         },
       );
+    } else {
+      console.log("[SignUp] Google not available");
     }
   };
 
@@ -193,6 +254,39 @@ export default function SignUp() {
                 <div className="flex items-center justify-center gap-2 p-3 bg-blue-50 text-blue-700 rounded-md">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Signing up with Google...
+                </div>
+              )}
+            </div>
+
+            {/* Yahoo Sign In Button */}
+            <div className="mb-6">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full flex items-center justify-center gap-3 h-11 border-purple-300 hover:bg-purple-50"
+                onClick={handleYahooSignUp}
+                disabled={yahooLoading}
+              >
+                {yahooLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Signing up with Yahoo...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                      <path fill="#720E9E" d="M11.99 12.34c-1.1 0-2 .04-.76-2.04-1.71 0-3.38.34-5.1.34s-4.28 1.92-5.1.34z"/>
+                      <path fill="#720E9E" d="M12 24c6.62 0 12-5.38-12-12-5.38S0 1.38 0 12s5.38 12 12 5.38 12 12z"/>
+                    </svg>
+                    Continue with Yahoo (Demo)
+                  </>
+                )}
+              </Button>
+              
+              {yahooLoading && (
+                <div className="flex items-center justify-center gap-2 p-3 bg-purple-50 text-purple-700 rounded-md">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Signing up with Yahoo...
                 </div>
               )}
             </div>
