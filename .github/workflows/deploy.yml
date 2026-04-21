@@ -1,0 +1,61 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  NODE_ENV: production
+  PORT: 8081
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
+        
+    - name: Install dependencies
+      run: |
+        pnpm install --frozen-lockfile
+        
+    - name: Build application
+      run: |
+        pnpm run build
+        
+    - name: Build Docker image
+      run: |
+        docker build -f Dockerfile.production -t scholarforge:latest .
+        
+    - name: Deploy to production
+      run: |
+        # Stop existing container
+        docker stop scholarforge || true
+        # Remove existing container
+        docker rm scholarforge || true
+        # Run new container
+        docker run -d \
+          --name scholarforge \
+          --restart unless-stopped \
+          -p 8081:8081 \
+          -e NODE_ENV=production \
+          -e DATABASE_URL=${{ secrets.DATABASE_URL }} \
+          -e SESSION_SECRET=${{ secrets.SESSION_SECRET }} \
+          -e GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+          -e YAHOO_CLIENT_ID=${{ secrets.YAHOO_CLIENT_ID }} \
+          -e YAHOO_CLIENT_SECRET=${{ secrets.YAHOO_CLIENT_SECRET }} \
+          scholarforge:latest

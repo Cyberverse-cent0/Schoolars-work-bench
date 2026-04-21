@@ -8,3 +8,4 @@ export * from "./files";
 export * from "./messages";
 export * from "./activity";
 export * from "./notifications";
+export * from "./password-reset-tokens";

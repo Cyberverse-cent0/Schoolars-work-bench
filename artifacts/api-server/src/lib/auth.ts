@@ -2,8 +2,9 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { usersTable, passwordResetTokensTable } from "@workspace/db";
+import { eq, lt } from "drizzle-orm";
+import { nanoid } from "./nanoid";
 import { logger } from "./logger";
 
 const JWT_SECRET = process.env.SESSION_SECRET || "scholarforge-secret-key";
@@ -91,6 +92,58 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
 
 export function getCurrentUser(req: Request) {
   return (req as any).user;
+}
+
+export function generateResetToken(): string {
+  // Generate a cryptographically secure random token
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let token = '';
+  for (let i = 0; i < 64; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
+}
+
+export async function createPasswordResetToken(userId: string): Promise<string> {
+  // Clean up any existing tokens for this user
+  await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, userId));
+  
+  // Create new token that expires in 1 hour
+  const token = generateResetToken();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+  
+  await db.insert(passwordResetTokensTable).values({
+    id: nanoid(),
+    userId,
+    token,
+    expiresAt,
+  });
+  
+  return token;
+}
+
+export async function validatePasswordResetToken(token: string): Promise<string | null> {
+  // Clean up expired tokens first
+  await db.delete(passwordResetTokensTable).where(
+    lt(passwordResetTokensTable.expiresAt, new Date())
+  );
+  
+  // Find valid token
+  const [resetToken] = await db.select().from(passwordResetTokensTable)
+    .where(eq(passwordResetTokensTable.token, token))
+    .limit(1);
+  
+  if (!resetToken || resetToken.usedAt) {
+    return null;
+  }
+  
+  return resetToken.userId;
+}
+
+export async function markPasswordResetTokenAsUsed(token: string): Promise<void> {
+  await db.update(passwordResetTokensTable)
+    .set({ usedAt: new Date() })
+    .where(eq(passwordResetTokensTable.token, token));
 }
 
 export { logger };

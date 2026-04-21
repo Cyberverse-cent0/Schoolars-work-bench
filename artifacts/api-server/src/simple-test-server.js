@@ -38,7 +38,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 20 * 1024 * 1024, // 20MB limit
   },
   fileFilter: (req, file, cb) => {
     // Only allow image files
@@ -556,6 +556,170 @@ app.patch("/api/users/:userId", (req, res) => {
   res.json(updatedUser);
 });
 
+// Admin analytics endpoint
+app.get("/api/analytics/admin", (req, res) => {
+  console.log("[SIMPLE] Admin analytics request");
+  
+  const allUsers = [
+    { id: "admin-user-id", role: "ADMIN", createdAt: "2024-01-01" },
+    { id: "test-user-id", role: "USER", createdAt: "2024-02-15" },
+    { id: "user-1776802124429", role: "USER", createdAt: "2026-04-21" }
+  ];
+  
+  const allProjects = [
+    { id: "project-1", status: "ONGOING", createdAt: "2024-01-15" },
+    { id: "project-2", status: "DRAFT", createdAt: "2024-02-01" },
+    { id: "project-3", status: "COMPLETED", createdAt: "2023-09-01" },
+    { id: "project-4", status: "ONGOING", createdAt: "2024-03-01" }
+  ];
+  
+  const analytics = {
+    totalUsers: allUsers.length,
+    totalProjects: allProjects.length,
+    totalTasks: 35,
+    activeProjects: allProjects.filter(p => p.status === "ONGOING").length,
+    projectsByStatus: [
+      { status: "ONGOING", count: allProjects.filter(p => p.status === "ONGOING").length },
+      { status: "DRAFT", count: allProjects.filter(p => p.status === "DRAFT").length },
+      { status: "COMPLETED", count: allProjects.filter(p => p.status === "COMPLETED").length }
+    ],
+    projectsByMonth: [
+      { month: "2023-09", count: 1 },
+      { month: "2024-01", count: 1 },
+      { month: "2024-02", count: 1 },
+      { month: "2024-03", count: 1 },
+      { month: "2024-04", count: 0 }
+    ],
+    usersByInstitution: [
+      { institution: "ScholarForge", count: 1 },
+      { institution: "Test University", count: 1 },
+      { institution: "Other", count: 1 }
+    ]
+  };
+
+  res.json(analytics);
+});
+
+// Admin users endpoint
+app.get("/api/admin/users", (req, res) => {
+  console.log("[SIMPLE] Admin users request");
+  
+  const mockUsers = [
+    {
+      id: "admin-user-id",
+      name: "Admin User",
+      email: "admin@scholarforge.io",
+      role: "ADMIN",
+      institution: "ScholarForge",
+      createdAt: "2024-01-01T00:00:00Z",
+      projectCount: 3
+    },
+    {
+      id: "test-user-id",
+      name: "Test User",
+      email: "fubates@gmail.com",
+      role: "USER",
+      institution: "Test University",
+      createdAt: "2024-02-15T10:00:00Z",
+      projectCount: 2
+    },
+    {
+      id: "user-1776802124429",
+      name: "New User",
+      email: "newuser@test.com",
+      role: "USER",
+      institution: null,
+      createdAt: "2026-04-21T20:08:44.429Z",
+      projectCount: 0
+    }
+  ];
+
+  res.json({ users: mockUsers });
+});
+
+// Admin projects endpoint
+app.get("/api/admin/projects", (req, res) => {
+  console.log("[SIMPLE] Admin projects request");
+  
+  const mockProjects = [
+    {
+      id: "project-1",
+      title: "Machine Learning Research",
+      status: "ONGOING",
+      visibility: "PUBLIC",
+      memberCount: 5,
+      createdAt: "2024-01-15T10:00:00Z",
+      owner: { name: "Admin User" }
+    },
+    {
+      id: "project-2",
+      title: "Web Development Platform",
+      status: "DRAFT",
+      visibility: "PRIVATE",
+      memberCount: 3,
+      createdAt: "2024-02-01T09:00:00Z",
+      owner: { name: "Test User" }
+    },
+    {
+      id: "project-3",
+      title: "Data Analysis Tool",
+      status: "COMPLETED",
+      visibility: "PUBLIC",
+      memberCount: 4,
+      createdAt: "2023-09-01T11:00:00Z",
+      owner: { name: "Test User" }
+    },
+    {
+      id: "project-4",
+      title: "Private Research Project",
+      status: "ONGOING",
+      visibility: "PRIVATE",
+      memberCount: 2,
+      createdAt: "2024-03-01T08:00:00Z",
+      owner: { name: "Test User" }
+    }
+  ];
+
+  res.json({ projects: mockProjects });
+});
+
+// Admin user role update endpoint
+app.patch("/api/users/:userId/role", (req, res) => {
+  console.log("[SIMPLE] Admin user role update:", req.params.userId, req.body);
+  
+  const { userId } = req.params;
+  const { role } = req.body;
+  
+  // In a real application, you would update the user's role in the database
+  console.log(`[SIMPLE] User ${userId} role updated to ${role}`);
+  
+  res.json({ message: "User role updated successfully" });
+});
+
+// Admin delete user endpoint
+app.delete("/api/admin/users/:userId", (req, res) => {
+  console.log("[SIMPLE] Admin delete user:", req.params.userId);
+  
+  const { userId } = req.params;
+  
+  // In a real application, you would delete the user from the database
+  console.log(`[SIMPLE] User ${userId} deleted`);
+  
+  res.json({ message: "User deleted successfully" });
+});
+
+// Admin delete project endpoint
+app.delete("/api/admin/projects/:projectId", (req, res) => {
+  console.log("[SIMPLE] Admin delete project:", req.params.projectId);
+  
+  const { projectId } = req.params;
+  
+  // In a real application, you would delete the project from the database
+  console.log(`[SIMPLE] Project ${projectId} deleted`);
+  
+  res.json({ message: "Project deleted successfully" });
+});
+
 // User analytics endpoint
 app.get("/api/users/analytics", (req, res) => {
   console.log("[SIMPLE] User analytics request");
@@ -599,6 +763,45 @@ app.get("/api/users/analytics", (req, res) => {
   };
 
   res.json(analytics);
+});
+
+// Project creation endpoint
+app.post("/api/projects", (req, res) => {
+  console.log("[SIMPLE] Project creation request:", req.body);
+  
+  const { title, description, status, visibility, keywords, abstract } = req.body;
+  
+  if (!title || !description) {
+    return res.status(400).json({ error: "Title and description are required" });
+  }
+
+  // Generate a new project ID
+  const projectId = `project-${Date.now()}-${Math.round(Math.random() * 1000)}`;
+  
+  // Create the new project
+  const newProject = {
+    id: projectId,
+    title,
+    description,
+    abstract: abstract || "",
+    keywords: keywords || [],
+    status: status || "PLANNING",
+    visibility: visibility || "PUBLIC",
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: null,
+    memberCount: 1,
+    taskCount: 0,
+    createdBy: "admin-user-id", // In a real app, this would come from authentication
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    members: [
+      { userId: "admin-user-id", role: "LEAD", joinedAt: new Date().toISOString() }
+    ]
+  };
+
+  console.log(`[SIMPLE] Project created successfully: ${projectId}`);
+  
+  res.status(201).json({ id: projectId });
 });
 
 // Enhanced projects endpoint with admin bypass
@@ -855,6 +1058,231 @@ app.get("/api/auth/me", (req, res) => {
     console.log("[SIMPLE] Invalid token");
     res.status(401).json({ error: "Invalid token" });
   }
+});
+
+// Enhanced password recovery request endpoint
+app.post("/api/auth/forgot-password", (req, res) => {
+  console.log("[SIMPLE] Enhanced password recovery request:", req.body);
+  
+  const { email, recoveryMethod, additionalInfo } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  // Check if user exists in our mock data
+  const mockUsers = [
+    { 
+      email: "admin@scholarforge.io", 
+      id: "admin-user-id", 
+      name: "Admin User",
+      phoneNumber: "+1-555-0100",
+      dateOfBirth: "1980-01-15",
+      institution: "ScholarForge",
+      securityQuestion: "pet",
+      securityAnswer: "fluffy"
+    },
+    { 
+      email: "fubates@gmail.com", 
+      id: "test-user-id", 
+      name: "Test User",
+      phoneNumber: "+1-555-0200", 
+      dateOfBirth: "1990-05-20",
+      institution: "Test University",
+      securityQuestion: "school",
+      securityAnswer: "lincoln-elementary"
+    },
+    { 
+      email: "newuser@test.com", 
+      id: "user-1776802124429", 
+      name: "New User",
+      phoneNumber: null,
+      dateOfBirth: null,
+      institution: null,
+      securityQuestion: null,
+      securityAnswer: null
+    }
+  ];
+
+  const user = mockUsers.find(u => u.email === email);
+  
+  if (!user) {
+    // For security, don't reveal if email exists or not
+    console.log("[SIMPLE] Password recovery requested for non-existent email:", email);
+    return res.json({ 
+      message: "If an account with this email exists, a password reset link has been sent",
+      success: true 
+    });
+  }
+
+  // Enhanced verification based on recovery method
+  let verificationPassed = true;
+  let verificationMessage = "";
+
+  if (recoveryMethod === "phone" && additionalInfo.phoneNumber) {
+    verificationPassed = user.phoneNumber === additionalInfo.phoneNumber;
+    verificationMessage = verificationPassed ? "Phone verified" : "Phone number does not match our records";
+  } else if (recoveryMethod === "security" && additionalInfo.securityQuestion && additionalInfo.securityAnswer) {
+    verificationPassed = user.securityQuestion === additionalInfo.securityQuestion && 
+                          user.securityAnswer === additionalInfo.securityAnswer.toLowerCase();
+    verificationMessage = verificationPassed ? "Security question verified" : "Security question answer does not match our records";
+  } else if (recoveryMethod === "enhanced") {
+    // Enhanced verification - check multiple factors
+    const phoneMatch = !additionalInfo.phoneNumber || user.phoneNumber === additionalInfo.phoneNumber;
+    const dobMatch = !additionalInfo.dateOfBirth || user.dateOfBirth === additionalInfo.dateOfBirth;
+    const institutionMatch = !additionalInfo.institution || user.institution === additionalInfo.institution;
+    const securityMatch = !additionalInfo.securityQuestion || !additionalInfo.securityAnswer || 
+                         (user.securityQuestion === additionalInfo.securityQuestion && 
+                          user.securityAnswer === additionalInfo.securityAnswer.toLowerCase());
+    
+    verificationPassed = phoneMatch && dobMatch && institutionMatch && securityMatch;
+    verificationMessage = verificationPassed ? "Enhanced verification passed" : "Some verification details do not match our records";
+  }
+
+  if (!verificationPassed && recoveryMethod !== "email") {
+    console.log(`[SIMPLE] Verification failed for ${email}: ${verificationMessage}`);
+    return res.status(400).json({ 
+      error: verificationMessage,
+      success: false 
+    });
+  }
+
+  // Generate a reset token (in real app, this would be stored in database with expiry)
+  const resetToken = `reset-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+  const resetLink = `http://localhost:5173/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+
+  console.log(`[SIMPLE] Password reset link for ${email} (${recoveryMethod}): ${resetLink}`);
+  
+  // In a real application, you would:
+  // 1. Store the reset token in database with expiry (e.g., 1 hour)
+  // 2. Send email/SMS with reset link based on recovery method
+  // 3. Log the verification attempt for security
+  
+  const response = { 
+    message: "If an account with this email exists, a password reset link has been sent",
+    success: true,
+    recoveryMethod: recoveryMethod
+  };
+
+  // For demo purposes only - include the reset link
+  response.resetLink = resetLink;
+
+  // Add additional info based on recovery method
+  if (recoveryMethod === "phone") {
+    response.deliveryMethod = "SMS with reset link sent to your phone";
+  } else if (recoveryMethod === "security") {
+    response.deliveryMethod = "Reset link sent to your email address";
+  } else if (recoveryMethod === "enhanced") {
+    response.deliveryMethod = "Multi-factor verification completed - reset link sent";
+  }
+  
+  res.json(response);
+});
+
+// Password reset endpoint
+app.post("/api/auth/reset-password", (req, res) => {
+  console.log("[SIMPLE] Password reset request:", req.body);
+  
+  const { token, email, newPassword } = req.body;
+  
+  if (!token || !email || !newPassword) {
+    return res.status(400).json({ error: "Token, email, and new password are required" });
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: "Password must be at least 8 characters long" });
+  }
+
+  // In a real application, you would:
+  // 1. Verify the reset token exists in database and is not expired
+  // 2. Update the user's password in the database
+  // 3. Delete the reset token
+  
+  console.log(`[SIMPLE] Password reset for ${email} with token ${token}`);
+  
+  res.json({ 
+    message: "Password has been reset successfully",
+    success: true 
+  });
+});
+
+// Google authentication endpoint
+app.post("/api/auth/google", (req, res) => {
+  console.log("[SIMPLE] Google auth request");
+  
+  const { token } = req.body;
+  
+  if (!token) {
+    return res.status(400).json({ error: "Google token is required" });
+  }
+
+  // In a real application, you would:
+  // 1. Verify the Google ID token using Google's verification library
+  // 2. Extract user information from the token
+  // 3. Check if user exists in database
+  // 4. Create or update user account
+  // 5. Generate JWT token for the user
+
+  // For demo purposes, we'll mock the Google user data
+  const mockGoogleUsers = [
+    {
+      email: "admin@scholarforge.io",
+      id: "admin-user-id",
+      name: "Admin User",
+      role: "ADMIN",
+      institution: "ScholarForge",
+      researchInterests: ["System Administration", "Research Management"],
+      bio: "System administrator for ScholarForge platform",
+      image: "https://lh3.googleusercontent.com/a/default-user"
+    },
+    {
+      email: "fubates@gmail.com", 
+      id: "test-user-id",
+      name: "Test User",
+      role: "USER",
+      institution: "Test University",
+      researchInterests: ["Test"],
+      bio: "Test bio",
+      image: "https://lh3.googleusercontent.com/a/default-user"
+    }
+  ];
+
+  // Simulate token verification and user lookup
+  let mockUser = null;
+  if (token.startsWith("mock-google-token-")) {
+    // Extract email from mock token for demo
+    const email = token.includes("admin") ? "admin@scholarforge.io" : "fubates@gmail.com";
+    mockUser = mockGoogleUsers.find(u => u.email === email);
+  }
+
+  if (!mockUser) {
+    // Create a new user for unknown Google accounts
+    mockUser = {
+      id: `google-user-${Date.now()}`,
+      name: "Google User",
+      email: "google.user@gmail.com",
+      role: "USER",
+      institution: null,
+      researchInterests: [],
+      bio: null,
+      image: "https://lh3.googleusercontent.com/a/default-user",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  // Generate JWT token
+  const jwtToken = `google-jwt-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+
+  console.log(`[SIMPLE] Google auth successful for ${mockUser.email}`);
+
+  res.json({
+    token: jwtToken,
+    user: {
+      ...mockUser,
+      updatedAt: new Date().toISOString()
+    }
+  });
 });
 
 // Mock signout endpoint

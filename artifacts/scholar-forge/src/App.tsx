@@ -10,6 +10,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import NotFound from "@/pages/not-found";
 import SignIn from "@/pages/auth/SignIn";
 import SignUp from "@/pages/auth/SignUp";
+import ForgotPassword from "@/pages/auth/ForgotPassword";
+import ResetPassword from "@/pages/auth/ResetPassword";
 import Dashboard from "@/pages/Dashboard";
 import Projects from "@/pages/Projects";
 import CreateProject from "@/pages/CreateProject";
@@ -102,6 +104,8 @@ function Router() {
       <Route path="/" component={() => <Redirect to="/dashboard" />} />
       <Route path="/signin" component={() => <PublicRoute component={SignIn} />} />
       <Route path="/signup" component={() => <PublicRoute component={SignUp} />} />
+      <Route path="/forgot-password" component={() => <PublicRoute component={ForgotPassword} />} />
+      <Route path="/reset-password" component={() => <PublicRoute component={ResetPassword} />} />
       <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/projects" component={() => <ProtectedRoute component={Projects} />} />
       <Route path="/projects/create" component={() => <ProtectedRoute component={CreateProject} />} />

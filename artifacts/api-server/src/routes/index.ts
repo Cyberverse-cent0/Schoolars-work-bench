@@ -16,6 +16,8 @@ import notificationsRouter from "./notifications";
 import storageRouter from "./storage";
 import uploadRouter from "./upload";
 import userManagementRouter from "./user-management";
+import testDbRouter from "./test-db";
+import simpleTestRouter from "./simple-test";
 
 const router: IRouter = Router();
 
@@ -36,5 +38,7 @@ router.use(notificationsRouter);
 router.use(storageRouter);
 router.use(uploadRouter);
 router.use(userManagementRouter);
+router.use(testDbRouter);
+router.use(simpleTestRouter);
 
 export default router;

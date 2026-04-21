@@ -139,7 +139,7 @@ export default function PublicProfile() {
           <p className="text-muted-foreground">The user profile you're looking for doesn't exist or isn't public.</p>
           <Button className="mt-4" onClick={() => setLocation("/scholars")}>
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Scholar Directory
+            Back to Scholars on going research
           </Button>
         </div>
       </div>

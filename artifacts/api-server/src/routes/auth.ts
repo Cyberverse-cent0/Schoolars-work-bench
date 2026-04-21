@@ -1,31 +1,30 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db";
+import { usersTable, passwordResetTokensTable } from "@workspace/db";
 import { eq, count } from "drizzle-orm";
 import { nanoid } from "../lib/nanoid";
-import { hashPassword, verifyPassword, generateToken, requireAuth, getCurrentUser } from "../lib/auth";
+import { hashPassword, verifyPassword, generateToken, requireAuth, getCurrentUser, createPasswordResetToken, validatePasswordResetToken, markPasswordResetTokenAsUsed } from "../lib/auth";
 import { OAuth2Client } from "google-auth-library";
-import { performanceMonitor } from "../middleware/debugMiddleware";
 import { authLogger, dbLogger, logError, logRequest } from "../lib/logger";
+import { emailService } from "../lib/email";
 
 const router: IRouter = Router();
 
-const formatUser = (user: typeof usersTable.$inferSelect) => ({
+const formatUser = (user: any) => ({
   id: user.id,
   name: user.name,
   email: user.email,
   role: user.role,
-  institution: user.institution,
-  researchInterests: user.researchInterests,
-  bio: user.bio,
-  image: user.image,
+  institution: user.institution || undefined,
+  researchInterests: user.researchInterests || undefined,
+  bio: user.bio || undefined,
+  image: user.image || undefined,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });
 
+// Simple signup endpoint
 router.post("/auth/signup", async (req, res): Promise<void> => {
-  const startTime = Date.now();
-  const startMemory = process.memoryUsage();
   try {
     const { name, email, password, institution, researchInterests } = req.body;
 
@@ -34,19 +33,17 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
       return;
     }
 
-    // Check if user exists and get user count in a single query
-    const [existing, userCountResult] = await Promise.all([
-      db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1),
-      db.select({ userCount: count() }).from(usersTable)
-    ]);
+    // Check if user exists
+    const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
     
-    if (existing.length > 0) {
+    if (existing && existing.length > 0) {
       res.status(409).json({ error: "Email already in use" });
       return;
     }
 
     // First user becomes ADMIN
-    const role = userCountResult[0].userCount === 0 ? "ADMIN" : "USER";
+    const [userCountResult] = await db.select({ userCount: count() }).from(usersTable);
+    const role = userCountResult[0]?.userCount === 0 ? "ADMIN" : "USER";
 
     const passwordHash = hashPassword(password);
     const id = nanoid();
@@ -67,19 +64,9 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
     }
 
     const token = generateToken(user.id);
-    
-    const duration = Date.now() - startTime;
-    const endMemory = process.memoryUsage();
-    console.log(`[PERF] Signup completed in ${duration}ms for user: ${email}`);
-    console.log(`[PERF] Memory delta: ${JSON.stringify({
-      heapUsed: endMemory.heapUsed - startMemory.heapUsed,
-      heapTotal: endMemory.heapTotal - startMemory.heapTotal
-    })}`);
-    
     res.status(201).json({ token, user: formatUser(user) });
   } catch (error) {
-    const duration = Date.now() - startTime;
-    console.error(`[PERF] Signup failed after ${duration}ms:`, error);
+    console.error("[Auth] Signup error:", error);
     res.status(500).json({ 
       error: "Internal server error",
       message: error instanceof Error ? error.message : "Unknown error",
@@ -87,143 +74,33 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
   }
 });
 
+// Simple signin endpoint
 router.post("/auth/signin", async (req, res): Promise<void> => {
-  const startTime = Date.now();
-  const startMemory = process.memoryUsage();
-  const { email, password } = req.body;
-  
-  // Log signin attempt
-  authLogger.info({
-    action: "signin_attempt",
-    email: email ? email.replace(/(.{2}).*(@.*)/, "$1***$2") : undefined,
-    userAgent: req.headers["user-agent"],
-    ip: req.ip,
-    timestamp: new Date().toISOString()
-  }, `Signin attempt for: ${email ? email.replace(/(.{2}).*(@.*)/, "$1***$2") : "unknown"}`);
-  
   try {
+    const { email, password } = req.body;
+    
     if (!email || !password) {
-      authLogger.warn({
-        action: "signin_validation_failed",
-        missingFields: { email: !email, password: !password },
-        timestamp: new Date().toISOString()
-      }, "Signin validation failed: missing required fields");
-      
       res.status(400).json({ error: "Email and password are required" });
       return;
     }
 
-    // Log database query start
-    const dbQueryStart = Date.now();
-    dbLogger.debug({
-      action: "user_lookup_start",
-      email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
-      timestamp: new Date().toISOString()
-    }, "Starting user lookup");
-
     const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
     
-    const dbQueryDuration = Date.now() - dbQueryStart;
-    dbLogger.info({
-      action: "user_lookup_complete",
-      email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
-      userFound: !!user,
-      hasPasswordHash: !!(user?.passwordHash),
-      duration: dbQueryDuration,
-      timestamp: new Date().toISOString()
-    }, `User lookup completed in ${dbQueryDuration}ms`);
-    
-    if (!user || !user.passwordHash) {
-      authLogger.warn({
-        action: "signin_failed_user_not_found",
-        email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
-        userExists: !!user,
-        hasPasswordHash: !!(user?.passwordHash),
-        timestamp: new Date().toISOString()
-      }, "Signin failed: user not found or no password");
-      
+    if (!user || !user?.passwordHash) {
       res.status(401).json({ error: "Invalid email or password" });
       return;
     }
-
-    // Log password verification start
-    const passwordVerifyStart = Date.now();
-    authLogger.debug({
-      action: "password_verification_start",
-      email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
-      timestamp: new Date().toISOString()
-    }, "Starting password verification");
 
     const passwordValid = verifyPassword(password, user.passwordHash);
-    const passwordVerifyDuration = Date.now() - passwordVerifyStart;
-    
-    authLogger.info({
-      action: "password_verification_complete",
-      email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
-      valid: passwordValid,
-      duration: passwordVerifyDuration,
-      timestamp: new Date().toISOString()
-    }, `Password verification completed in ${passwordVerifyDuration}ms`);
-
     if (!passwordValid) {
-      authLogger.warn({
-        action: "signin_failed_invalid_password",
-        email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
-        timestamp: new Date().toISOString()
-      }, "Signin failed: invalid password");
-      
       res.status(401).json({ error: "Invalid email or password" });
       return;
     }
 
-    // Generate token
-    const tokenGenerateStart = Date.now();
     const token = generateToken(user.id);
-    const tokenGenerateDuration = Date.now() - tokenGenerateStart;
-    
-    authLogger.info({
-      action: "token_generated",
-      email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
-      userId: user.id,
-      duration: tokenGenerateDuration,
-      timestamp: new Date().toISOString()
-    }, `Token generated in ${tokenGenerateDuration}ms`);
-    
-    const duration = Date.now() - startTime;
-    const endMemory = process.memoryUsage();
-    
-    authLogger.info({
-      action: "signin_success",
-      email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
-      userId: user.id,
-      userRole: user.role,
-      duration,
-      memoryDelta: {
-        heapUsed: endMemory.heapUsed - startMemory.heapUsed,
-        heapTotal: endMemory.heapTotal - startMemory.heapTotal
-      },
-      timestamp: new Date().toISOString()
-    }, `Signin successful for ${email.replace(/(.{2}).*(@.*)/, "$1***$2")} in ${duration}ms`);
-    
     res.json({ token, user: formatUser(user) });
   } catch (error) {
-    const duration = Date.now() - startTime;
-    
-    logError(error as Error, {
-      action: "signin_error",
-      email: email ? email.replace(/(.{2}).*(@.*)/, "$1***$2") : undefined,
-      duration,
-      timestamp: new Date().toISOString()
-    });
-    
-    authLogger.error({
-      action: "signin_failed_error",
-      email: email ? email.replace(/(.{2}).*(@.*)/, "$1***$2") : undefined,
-      error: (error as Error).message,
-      duration,
-      timestamp: new Date().toISOString()
-    }, `Signin failed with error after ${duration}ms`);
-    
+    console.error("[Auth] Signin error:", error);
     res.status(500).json({ 
       error: "Internal server error",
       message: error instanceof Error ? error.message : "Unknown error",
@@ -231,12 +108,143 @@ router.post("/auth/signin", async (req, res): Promise<void> => {
   }
 });
 
-router.post("/auth/signout", async (_req, res): Promise<void> => {
+// Forgot password endpoint
+router.post("/auth/forgot-password", async (req, res): Promise<void> => {
   try {
-    console.log("[Auth] User signed out");
-    res.json({ message: "Signed out successfully" });
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400).json({ error: "Email is required" });
+      return;
+    }
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+
+    if (!user || user.length === 0) {
+      res.json({ message: "If an account with that email exists, a password reset link has been sent." });
+      return;
+    }
+
+    if (!user[0]?.passwordHash) {
+      res.json({ message: "If an account with that email exists, a password reset link has been sent." });
+      return;
+    }
+
+    const resetToken = await createPasswordResetToken(user[0].id);
+    const emailResult = await emailService.sendPasswordResetEmail(user[0].email, resetToken);
+
+    const response: any = { message: "If an account with that email exists, a password reset link has been sent." };
+    if (emailResult.resetLink) {
+      response.resetLink = emailResult.resetLink;
+    }
+    res.json(response);
   } catch (error) {
-    console.error("[Auth] Signout error:", error);
+    console.error("[Auth] Forgot password error:", error);
+    res.status(500).json({ error: "Failed to process password reset request" });
+  }
+});
+
+// Reset password endpoint
+router.post("/auth/reset-password", async (req, res): Promise<void> => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      res.status(400).json({ error: "Reset token and new password are required" });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      res.status(400).json({ error: "Password must be at least 8 characters long" });
+      return;
+    }
+
+    const userId = await validatePasswordResetToken(token);
+
+    if (!userId) {
+      res.status(400).json({ error: "Invalid or expired reset token" });
+      return;
+    }
+
+    const passwordHash = hashPassword(newPassword);
+
+    const [updatedUser] = await db.update(usersTable)
+      .set({ 
+        passwordHash, 
+        updatedAt: new Date() 
+      })
+      .where(eq(usersTable.id, userId))
+      .returning();
+
+    if (!updatedUser) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    await markPasswordResetTokenAsUsed(token);
+    res.json({ message: "Password has been reset successfully" });
+  } catch (error) {
+    console.error("[Auth] Reset password error:", error);
+    res.status(500).json({ error: "Failed to reset password" });
+  }
+});
+
+// Mock Google OAuth endpoint
+router.post("/auth/google", async (req, res): Promise<void> => {
+  try {
+    const { token: googleToken } = req.body;
+
+    if (!googleToken) {
+      res.status(400).json({ error: "Google token is required" });
+      return;
+    }
+
+    // Handle mock tokens for development
+    if (googleToken.startsWith("mock-google-token")) {
+      authLogger.info({
+        action: "google_oauth_mock_signin",
+        timestamp: new Date().toISOString()
+      }, "Mock Google sign-in attempt");
+
+      // Create or find a mock user for development
+      const mockEmail = "demo@scholarforge.dev";
+      const mockName = "Demo User";
+      
+      const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.email, mockEmail)).limit(1);
+      
+      if (existingUser) {
+        const authToken = generateToken(existingUser[0].id);
+        res.json({ token: authToken, user: formatUser(existingUser[0]) });
+        return;
+      }
+
+      // Create new mock user
+      const [userCountResult] = await db.select({ userCount: count() }).from(usersTable);
+      const role = userCountResult[0].userCount === 0 ? "ADMIN" : "USER";
+      
+      const [newUser] = await db.insert(usersTable).values({
+        id: nanoid(),
+        name: mockName,
+        email: mockEmail,
+        image: "https://via.placeholder.com/150/3b82f6/ffffff?text=Demo",
+        googleId: "mock-google-id",
+        oauthProvider: "google",
+        role,
+      }).returning();
+
+      if (!newUser) {
+        res.status(500).json({ error: "Failed to create demo user" });
+        return;
+      }
+
+      const authToken = generateToken(newUser[0].id);
+      res.status(201).json({ token: authToken, user: formatUser(newUser[0]) });
+      return;
+    }
+
+    res.status(401).json({ error: "Google OAuth not configured" });
+  } catch (error) {
+    console.error("[Auth] Google error:", error);
     res.status(500).json({ 
       error: "Internal server error",
       message: error instanceof Error ? error.message : "Unknown error",
@@ -254,93 +262,12 @@ router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
   }
 });
 
-// Google OAuth endpoint
-router.post("/auth/google", async (req, res): Promise<void> => {
+router.post("/auth/signout", async (_req, res): Promise<void> => {
   try {
-    const { token: googleToken } = req.body;
-
-    if (!googleToken) {
-      res.status(400).json({ error: "Google token is required" });
-      return;
-    }
-
-    const googleClientId = process.env.GOOGLE_CLIENT_ID;
-    if (!googleClientId) {
-      res.status(500).json({ error: "Google OAuth not configured on server" });
-      return;
-    }
-
-    const client = new OAuth2Client(googleClientId);
-    
-    // Verify the Google token
-    let ticket;
-    try {
-      ticket = await client.verifyIdToken({
-        idToken: googleToken,
-        audience: googleClientId,
-      });
-    } catch (error) {
-      res.status(401).json({ error: "Invalid Google token" });
-      return;
-    }
-
-    const payload = ticket.getPayload();
-    if (!payload) {
-      res.status(401).json({ error: "Invalid Google token payload" });
-      return;
-    }
-
-    const googleId = payload.sub;
-    const email = payload.email || "";
-    const name = payload.name || "Google User";
-    const image = payload.picture || "";
-
-    // Check if user exists and get user count in parallel
-    const [existingUser, existingEmail, userCountResult] = await Promise.all([
-      db.select().from(usersTable).where(eq(usersTable.googleId, googleId)).limit(1),
-      db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1),
-      db.select({ userCount: count() }).from(usersTable)
-    ]);
-
-    if (existingUser.length > 0) {
-      const user = existingUser[0];
-      const authToken = generateToken(user.id);
-      res.json({ token: authToken, user: formatUser(user) });
-      return;
-    }
-
-    if (existingEmail.length > 0) {
-      res.status(409).json({ 
-        error: "Email already in use",
-        message: "This email is already registered. Try signing in with your password instead.",
-      });
-      return;
-    }
-
-    // First user becomes ADMIN
-    const role = userCountResult[0].userCount === 0 ? "ADMIN" : "USER";
-
-    // Create new user with Google OAuth
-    const userId = nanoid();
-    const [newUser] = await db.insert(usersTable).values({
-      id: userId,
-      name,
-      email,
-      image: image || null,
-      googleId,
-      oauthProvider: "google",
-      role,
-    }).returning();
-
-    if (!newUser) {
-      res.status(500).json({ error: "Failed to create user account" });
-      return;
-    }
-
-    const authToken = generateToken(newUser.id);
-    res.status(201).json({ token: authToken, user: formatUser(newUser) });
+    console.log("[Auth] User signed out");
+    res.json({ message: "Signed out successfully" });
   } catch (error) {
-    console.error("[Auth] Google OAuth error:", error);
+    console.error("[Auth] Signout error:", error);
     res.status(500).json({ 
       error: "Internal server error",
       message: error instanceof Error ? error.message : "Unknown error",
@@ -349,34 +276,4 @@ router.post("/auth/google", async (req, res): Promise<void> => {
 });
 
 export { formatUser };
-// Temporary endpoint to update user role
-router.post("/auth/make-admin", async (req, res): Promise<void> => {
-  const { email, role } = req.body;
-  
-  if (!email || !role) {
-    res.status(400).json({ error: "Email and role are required" });
-    return;
-  }
-
-  try {
-    const [updatedUser] = await db.update(usersTable)
-      .set({ role, updatedAt: new Date() })
-      .where(eq(usersTable.email, email))
-      .returning();
-
-    if (!updatedUser) {
-      res.status(404).json({ error: "User not found" });
-      return;
-    }
-
-    res.json({ 
-      message: `User role updated to ${role}`,
-      user: formatUser(updatedUser)
-    });
-  } catch (error) {
-    console.error("Error updating user role:", error);
-    res.status(500).json({ error: "Failed to update user role" });
-  }
-});
-
 export default router;

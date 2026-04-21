@@ -66,7 +66,7 @@ export default function ScholarDirectory() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div>
-        <h1 className="text-2xl font-serif font-semibold text-foreground">Scholars Directory</h1>
+        <h1 className="text-2xl font-serif font-semibold text-foreground">Scholars on going research</h1>
         <p className="text-muted-foreground text-sm mt-0.5">
           Connect with researchers and explore academic collaboration
         </p>

@@ -13,7 +13,7 @@ const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/projects?myProjects=true", label: "My Projects", icon: FolderOpen },
   { to: "/projects", label: "Discover Projects", icon: Search },
-  { to: "/scholars", label: "Scholar Directory", icon: Users2 },
+  { to: "/scholars", label: "Scholars on going research", icon: Users2 },
 ];
 
 export function Sidebar() {
@@ -145,7 +145,8 @@ export function Sidebar() {
           </div>
         </Link>
 
-        {user?.role === "ADMIN" && (
+        {/* Role-based navigation button */}
+        {user?.role === "ADMIN" ? (
           <Link to="/admin" onClick={() => setMobileOpen(false)}>
             <div
               className={cn(
@@ -166,6 +167,31 @@ export function Sidebar() {
               {collapsed && (
                 <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                   <span className="text-xs font-medium">Admin Panel</span>
+                </div>
+              )}
+            </div>
+          </Link>
+        ) : (
+          <Link to="/account" onClick={() => setMobileOpen(false)}>
+            <div
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer group relative",
+                isActive("/account")
+                  ? "bg-sidebar-primary/20 text-sidebar-primary"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                collapsed && "justify-center px-2"
+              )}
+              data-testid="nav-profile"
+              title={collapsed ? "My Profile" : undefined}
+            >
+              <User className="w-4 h-4 flex-shrink-0" />
+              {!collapsed && (
+                <span className="truncate">My Profile</span>
+              )}
+              {/* Tooltip when collapsed */}
+              {collapsed && (
+                <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                  <span className="text-xs font-medium">My Profile</span>
                 </div>
               )}
             </div>
