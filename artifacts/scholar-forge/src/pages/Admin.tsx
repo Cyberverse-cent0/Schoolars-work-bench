@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Users, FolderOpen, Activity, Shield, Trash2, ChevronDown, Settings } from "lucide-react";
+import { Users, FolderOpen, Activity, Shield, Trash2, ChevronDown, Settings, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { useQuery, apiFetch } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate, getStatusColor } from "@/lib/utils";
@@ -49,6 +50,8 @@ interface AdminStats {
 export default function Admin() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
 
   if (user?.role !== "ADMIN") {
     return (
@@ -67,7 +70,7 @@ export default function Admin() {
 
   const changeUserRole = async (userId: string, role: string) => {
     try {
-      await apiFetch(`/api/admin/users/${userId}`, { method: "PATCH", body: JSON.stringify({ role }) });
+      await apiFetch(`/api/users/${userId}/role`, { method: "PATCH", body: JSON.stringify({ role }) });
       refetchUsers();
     } catch (e) {}
   };
@@ -181,13 +184,43 @@ export default function Admin() {
           <Card className="border-border">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold">All Users</CardTitle>
+              <div className="flex gap-2 mt-3">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search users by name or email..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 h-8 text-sm"
+                  />
+                </div>
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger className="h-8 text-sm w-32">
+                    <SelectValue placeholder="Filter by role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="USER">User</SelectItem>
+                    <SelectItem value="SCHOLAR">Scholar</SelectItem>
+                    <SelectItem value="ADMIN">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent>
               {usersLoading ? (
                 <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
               ) : (
                 <div className="space-y-2">
-                  {usersData?.users?.map(u => (
+                  {usersData?.users
+                    ?.filter(u => {
+                      const matchesSearch = searchTerm === "" || 
+                        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        u.email.toLowerCase().includes(searchTerm.toLowerCase());
+                      const matchesRole = roleFilter === "all" || u.role === roleFilter;
+                      return matchesSearch && matchesRole;
+                    })
+                    ?.map(u => (
                     <div key={u.id} className="flex items-center gap-3 p-3 border border-border rounded-lg group">
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <span className="text-sm font-semibold text-primary">{u.name.charAt(0)}</span>
@@ -203,7 +236,8 @@ export default function Admin() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="RESEARCHER">Researcher</SelectItem>
+                              <SelectItem value="USER">User</SelectItem>
+                              <SelectItem value="SCHOLAR">Scholar</SelectItem>
                               <SelectItem value="ADMIN">Admin</SelectItem>
                             </SelectContent>
                           </Select>

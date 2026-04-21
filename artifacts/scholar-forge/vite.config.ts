@@ -57,24 +57,6 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
-  },
-  server: {
-    port,
-    host: "0.0.0.0",
-    allowedHosts: true,
-    fs: {
-      strict: true,
-      deny: ["**/.*"],
-    },
-    proxy: {
-      "/api": {
-        target: "http://localhost:8080",
-        changeOrigin: true,
-        secure: false,
-      },
-    },
-  },
-  build: {
     target: "esnext",
     minify: "terser",
     sourcemap: true,
@@ -91,13 +73,29 @@ export default defineConfig({
       include: ["react", "react-dom"],
     },
   },
+  server: {
+    port,
+    host: "0.0.0.0",
+    allowedHosts: true,
+    fs: {
+      strict: true,
+      deny: ["**/.*"],
+    },
+    proxy: {
+      "/api": {
+        target: "http://localhost:8081",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
   preview: {
     port,
     host: "0.0.0.0",
     allowedHosts: true,
   },
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || "1.0.0"),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
 });

@@ -108,13 +108,24 @@ router.delete("/users/:userId", requireAdmin, async (req, res): Promise<void> =>
 });
 
 router.patch("/users/:userId/role", requireAdmin, async (req, res): Promise<void> => {
+  const adminUser = getCurrentUser(req);
   const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
   const { role } = req.body;
 
-  if (!["USER", "ADMIN"].includes(role)) {
+  if (!["USER", "SCHOLAR", "ADMIN"].includes(role)) {
     res.status(400).json({ error: "Invalid role" });
     return;
   }
+
+  // Get the user before update for audit logging
+  const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  
+  if (!existingUser) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const oldRole = existingUser.role;
 
   const [user] = await db.update(usersTable)
     .set({ role, updatedAt: new Date() })
@@ -125,6 +136,9 @@ router.patch("/users/:userId/role", requireAdmin, async (req, res): Promise<void
     res.status(404).json({ error: "User not found" });
     return;
   }
+
+  // Audit log for role change
+  console.log(`[AUDIT] Admin ${adminUser.email} (${adminUser.id}) changed role for user ${user.email} (${user.id}) from ${oldRole} to ${role}`);
 
   res.json(formatUser(user));
 });
