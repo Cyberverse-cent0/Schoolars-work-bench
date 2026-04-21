@@ -98,15 +98,19 @@ export default function SignUp() {
       console.log("[SignUp] Yahoo auth response status:", res.status);
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: "Yahoo sign up failed" }));
-        throw new Error(data.error || "Yahoo sign up failed");
+        const errorData = await res.json().catch(() => ({ error: "Yahoo sign up failed" }));
+        const errorMsg = errorData.error || "Yahoo sign up failed";
+        console.error("[SignUp] Yahoo sign-up failed:", errorMsg);
+        throw new Error(errorMsg);
       }
 
       const data = await res.json();
       console.log("[SignUp] Yahoo auth response data:", data);
       
       if (!data.token || !data.user) {
-        throw new Error("Invalid response from server");
+        const errorMsg = "Invalid response from server";
+        console.error("[SignUp] Invalid Yahoo response:", errorMsg);
+        throw new Error(errorMsg);
       }
 
       console.log("[SignUp] Custom Yahoo auth success:", data.user);
@@ -142,7 +146,7 @@ export default function SignUp() {
   useEffect(() => {
     // Check if Google Sign-In is available
     const setupGoogle = () => {
-      if (window.google && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+      if (window.google && window.google.accounts && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
         window.google.accounts.id.initialize({
           client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
           callback: handleGoogleSuccess,
@@ -158,8 +162,15 @@ export default function SignUp() {
           },
         );
         setGoogleAvailable(true);
+        console.log("[SignUp] Google Sign-In initialized successfully");
+      } else {
+        console.log("[SignUp] Google Sign-In not available");
+        setGoogleAvailable(false);
       }
     };
+
+    // Always show Google button (even if not available, for demo)
+    console.log("[SignUp] Google button visibility set to visible");
 
     // Use script tag's onload event with timeout
     const script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
@@ -168,7 +179,7 @@ export default function SignUp() {
         setupGoogle();
       } else {
         const timeoutId = setTimeout(() => {
-          // If Google doesn't load within 3 seconds, continue without it
+          console.log("[SignUp] Google script timeout - using fallback");
           setGoogleAvailable(false);
         }, 3000);
         
@@ -176,12 +187,13 @@ export default function SignUp() {
           clearTimeout(timeoutId);
           setupGoogle();
         });
-        
-        return () => {
-          clearTimeout(timeoutId);
-          script.removeEventListener("load", setupGoogle);
-        };
+        script.setAttribute("data-loaded", "true");
       }
+      
+      return () => {
+        clearTimeout(timeoutId);
+        script.removeEventListener("load", setupGoogle);
+      };
     }
   }, []);
 
