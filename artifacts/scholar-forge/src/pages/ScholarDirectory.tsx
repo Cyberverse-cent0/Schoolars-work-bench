@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@/hooks/useApi";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSocket } from "@/contexts/SocketContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
 import { EnhancedMessagePanel } from "@/components/EnhancedMessagePanel";
@@ -33,6 +34,7 @@ interface MessagePanelState {
 }
 
 export default function ScholarDirectory() {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [messagePanel, setMessagePanel] = useState<MessagePanelState>({
     isOpen: false,
