@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { User, KeyRound, Building } from "lucide-react";
+import { User, KeyRound, Building, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ export default function Account() {
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [isPasswordSectionExpanded, setIsPasswordSectionExpanded] = useState(false);
 
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,54 +158,75 @@ export default function Account() {
         </CardContent>
       </Card>
 
-      {/* Password Card */}
+      {/* Password Card - Collapsible */}
       <Card className="border-border">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <KeyRound className="w-4 h-4" /> Change Password
-          </CardTitle>
-          <CardDescription>Update your account password</CardDescription>
+        <CardHeader 
+          className="cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => setIsPasswordSectionExpanded(!isPasswordSectionExpanded)}
+        >
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-4 h-4" />
+              <CardTitle className="text-base">Change Password</CardTitle>
+            </div>
+            <div className="flex items-center gap-2">
+              <CardDescription className="text-sm">
+                {isPasswordSectionExpanded ? "Click to collapse" : "Click to expand"}
+              </CardDescription>
+              {isPasswordSectionExpanded ? (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              )}
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={changePassword} className="space-y-4">
-            {passwordError && <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">{passwordError}</div>}
-            {passwordSuccess && <div className="text-sm text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400 p-3 rounded-md">Password changed!</div>}
-            <div className="space-y-1.5">
-              <Label htmlFor="current-password">Current Password</Label>
-              <Input
-                id="current-password"
-                type="password"
-                value={passwordForm.currentPassword}
-                onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="new-password">New Password</Label>
-              <Input
-                id="new-password"
-                type="password"
-                value={passwordForm.newPassword}
-                onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                required
-                minLength={8}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="confirm-password">Confirm New Password</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                value={passwordForm.confirmPassword}
-                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                required
-              />
-            </div>
-            <Button type="submit" disabled={passwordLoading}>
-              {passwordLoading ? "Updating..." : "Change Password"}
-            </Button>
-          </form>
-        </CardContent>
+        
+        {isPasswordSectionExpanded && (
+          <>
+            <Separator />
+            <CardContent className="pt-4">
+              <form onSubmit={changePassword} className="space-y-4">
+                {passwordError && <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">{passwordError}</div>}
+                {passwordSuccess && <div className="text-sm text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400 p-3 rounded-md">Password changed!</div>}
+                <div className="space-y-1.5">
+                  <Label htmlFor="current-password">Current Password</Label>
+                  <Input
+                    id="current-password"
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                    required
+                    minLength={8}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirm-password">Confirm New Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                    required
+                  />
+                </div>
+                <Button type="submit" disabled={passwordLoading}>
+                  {passwordLoading ? "Updating..." : "Change Password"}
+                </Button>
+              </form>
+            </CardContent>
+          </>
+        )}
       </Card>
     </div>
   );

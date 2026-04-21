@@ -18,7 +18,9 @@ import Account from "@/pages/Account";
 import Admin from "@/pages/Admin";
 import ScholarDirectory from "@/pages/ScholarDirectory";
 import UserManagement from "@/pages/admin/UserManagement";
+import Chat from "@/pages/Chat";
 import PublicProfile from "@/pages/PublicProfile";
+import DebugDashboard from "@/components/DebugDashboard";
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
@@ -109,6 +111,8 @@ function Router() {
       <Route path="/admin" component={() => <ProtectedRoute component={Admin} />} />
       <Route path="/admin/users" component={() => <ProtectedRoute component={UserManagement} />} />
       <Route path="/scholars" component={() => <ProtectedRoute component={ScholarDirectory} />} />
+      <Route path="/chat" component={() => <ProtectedRoute component={Chat} />} />
+      <Route path="/debug" component={() => <ProtectedRoute component={DebugDashboard} />} />
       <Route component={NotFound} />
     </Switch>
   );

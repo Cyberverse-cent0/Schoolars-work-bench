@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { FolderOpen, Users, CheckSquare, Target, TrendingUp, Clock, ArrowRight } from "lucide-react";
+import { FolderOpen, Users, CheckSquare, Target, TrendingUp, Clock, ArrowRight, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,13 +52,23 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-serif font-semibold text-foreground">
-          Welcome back, {user?.name?.split(" ")[0]}
-        </h1>
-        <p className="text-muted-foreground text-sm mt-0.5">
-          Here's an overview of your research workspace
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-serif font-semibold text-foreground">
+            Welcome back, {user?.name?.split(" ")[0]}
+          </h1>
+          <p className="text-muted-foreground text-sm mt-0.5">
+            Here's an overview of your research workspace
+          </p>
+        </div>
+        {user?.role === "SCHOLAR" && (
+          <Link to="/chat">
+            <Button className="gap-2">
+              <MessageSquare className="w-4 h-4" />
+              Contact Admin
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Stats grid */}

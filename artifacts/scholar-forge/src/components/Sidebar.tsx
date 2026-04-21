@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import {
   LayoutDashboard, FolderOpen, Search, Plus, User, Shield, LogOut,
-  BookOpen, ChevronLeft, ChevronRight, Menu, X, Users2
+  BookOpen, ChevronLeft, ChevronRight, Menu, X, Users2, MessageSquare
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -91,6 +91,34 @@ export function Sidebar() {
         ))}
 
         <Separator className="bg-sidebar-border my-2" />
+
+        {/* Chat - Scholars and Admins only */}
+        {(user?.role === "SCHOLAR" || user?.role === "ADMIN") && (
+          <Link to="/chat" onClick={() => setMobileOpen(false)}>
+            <div
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer group relative",
+                isActive("/chat")
+                  ? "bg-sidebar-primary/20 text-sidebar-primary"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                collapsed && "justify-center px-2"
+              )}
+              data-testid="nav-chat"
+              title={collapsed ? "Messages" : undefined}
+            >
+              <MessageSquare className="w-4 h-4 flex-shrink-0" />
+              {!collapsed && (
+                <span className="truncate">Messages</span>
+              )}
+              {/* Tooltip when collapsed */}
+              {collapsed && (
+                <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                  <span className="text-xs font-medium">Messages</span>
+                </div>
+              )}
+            </div>
+          </Link>
+        )}
 
         <Link to="/account" onClick={() => setMobileOpen(false)}>
           <div

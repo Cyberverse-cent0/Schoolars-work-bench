@@ -5,6 +5,8 @@ import { eq, count } from "drizzle-orm";
 import { nanoid } from "../lib/nanoid";
 import { hashPassword, verifyPassword, generateToken, requireAuth, getCurrentUser } from "../lib/auth";
 import { OAuth2Client } from "google-auth-library";
+import { performanceMonitor } from "../middleware/debugMiddleware";
+import { authLogger, dbLogger, logError, logRequest } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -22,36 +24,29 @@ const formatUser = (user: typeof usersTable.$inferSelect) => ({
 });
 
 router.post("/auth/signup", async (req, res): Promise<void> => {
+  const startTime = Date.now();
+  const startMemory = process.memoryUsage();
   try {
-    console.log("[Auth] POST /auth/signup - Request body:", {
-      name: req.body.name,
-      email: req.body.email,
-      institution: req.body.institution,
-      hasPassword: !!req.body.password,
-    });
-
     const { name, email, password, institution, researchInterests } = req.body;
 
     if (!name || !email || !password) {
-      console.warn("[Auth] Missing required fields:", { name: !!name, email: !!email, password: !!password });
-      res.status(400).json({ 
-        error: "Name, email and password are required",
-        received: { name: !!name, email: !!email, password: !!password }
-      });
+      res.status(400).json({ error: "Name, email and password are required" });
       return;
     }
 
-    const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email));
-    if (existing) {
-      console.warn("[Auth] Email already in use:", email);
+    // Check if user exists and get user count in a single query
+    const [existing, userCountResult] = await Promise.all([
+      db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1),
+      db.select({ userCount: count() }).from(usersTable)
+    ]);
+    
+    if (existing.length > 0) {
       res.status(409).json({ error: "Email already in use" });
       return;
     }
 
     // First user becomes ADMIN
-    const [{ userCount }] = await db.select({ userCount: count() }).from(usersTable);
-    const role = userCount === 0 ? "ADMIN" : "USER";
-    console.log("[Auth] User count:", userCount, "=> role:", role);
+    const role = userCountResult[0].userCount === 0 ? "ADMIN" : "USER";
 
     const passwordHash = hashPassword(password);
     const id = nanoid();
@@ -67,61 +62,171 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
     }).returning();
 
     if (!user) {
-      console.error("[Auth] Failed to create user - no user returned from DB");
       res.status(500).json({ error: "Failed to create user" });
       return;
     }
 
     const token = generateToken(user.id);
-    console.log("[Auth] User created successfully:", { id: user.id, email: user.email, role });
+    
+    const duration = Date.now() - startTime;
+    const endMemory = process.memoryUsage();
+    console.log(`[PERF] Signup completed in ${duration}ms for user: ${email}`);
+    console.log(`[PERF] Memory delta: ${JSON.stringify({
+      heapUsed: endMemory.heapUsed - startMemory.heapUsed,
+      heapTotal: endMemory.heapTotal - startMemory.heapTotal
+    })}`);
+    
     res.status(201).json({ token, user: formatUser(user) });
   } catch (error) {
-    console.error("[Auth] Signup error:", error);
+    const duration = Date.now() - startTime;
+    console.error(`[PERF] Signup failed after ${duration}ms:`, error);
     res.status(500).json({ 
       error: "Internal server error",
       message: error instanceof Error ? error.message : "Unknown error",
-      type: error instanceof Error ? error.constructor.name : typeof error,
     });
   }
 });
 
 router.post("/auth/signin", async (req, res): Promise<void> => {
+  const startTime = Date.now();
+  const startMemory = process.memoryUsage();
+  const { email, password } = req.body;
+  
+  // Log signin attempt
+  authLogger.info({
+    action: "signin_attempt",
+    email: email ? email.replace(/(.{2}).*(@.*)/, "$1***$2") : undefined,
+    userAgent: req.headers["user-agent"],
+    ip: req.ip,
+    timestamp: new Date().toISOString()
+  }, `Signin attempt for: ${email ? email.replace(/(.{2}).*(@.*)/, "$1***$2") : "unknown"}`);
+  
   try {
-    console.log("[Auth] POST /auth/signin - Request:", {
-      email: req.body.email,
-      hasPassword: !!req.body.password,
-    });
-
-    const { email, password } = req.body;
-
     if (!email || !password) {
-      console.warn("[Auth] Missing required fields:", { email: !!email, password: !!password });
+      authLogger.warn({
+        action: "signin_validation_failed",
+        missingFields: { email: !email, password: !password },
+        timestamp: new Date().toISOString()
+      }, "Signin validation failed: missing required fields");
+      
       res.status(400).json({ error: "Email and password are required" });
       return;
     }
 
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
-    if (!user) {
-      console.warn("[Auth] User not found:", email);
+    // Log database query start
+    const dbQueryStart = Date.now();
+    dbLogger.debug({
+      action: "user_lookup_start",
+      email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
+      timestamp: new Date().toISOString()
+    }, "Starting user lookup");
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+    
+    const dbQueryDuration = Date.now() - dbQueryStart;
+    dbLogger.info({
+      action: "user_lookup_complete",
+      email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
+      userFound: !!user,
+      hasPasswordHash: !!(user?.passwordHash),
+      duration: dbQueryDuration,
+      timestamp: new Date().toISOString()
+    }, `User lookup completed in ${dbQueryDuration}ms`);
+    
+    if (!user || !user.passwordHash) {
+      authLogger.warn({
+        action: "signin_failed_user_not_found",
+        email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
+        userExists: !!user,
+        hasPasswordHash: !!(user?.passwordHash),
+        timestamp: new Date().toISOString()
+      }, "Signin failed: user not found or no password");
+      
       res.status(401).json({ error: "Invalid email or password" });
       return;
     }
 
-    if (!user.passwordHash || !verifyPassword(password, user.passwordHash)) {
-      console.warn("[Auth] Invalid password for user:", email);
+    // Log password verification start
+    const passwordVerifyStart = Date.now();
+    authLogger.debug({
+      action: "password_verification_start",
+      email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
+      timestamp: new Date().toISOString()
+    }, "Starting password verification");
+
+    const passwordValid = verifyPassword(password, user.passwordHash);
+    const passwordVerifyDuration = Date.now() - passwordVerifyStart;
+    
+    authLogger.info({
+      action: "password_verification_complete",
+      email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
+      valid: passwordValid,
+      duration: passwordVerifyDuration,
+      timestamp: new Date().toISOString()
+    }, `Password verification completed in ${passwordVerifyDuration}ms`);
+
+    if (!passwordValid) {
+      authLogger.warn({
+        action: "signin_failed_invalid_password",
+        email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
+        timestamp: new Date().toISOString()
+      }, "Signin failed: invalid password");
+      
       res.status(401).json({ error: "Invalid email or password" });
       return;
     }
 
+    // Generate token
+    const tokenGenerateStart = Date.now();
     const token = generateToken(user.id);
-    console.log("[Auth] User signed in successfully:", { id: user.id, email: user.email });
+    const tokenGenerateDuration = Date.now() - tokenGenerateStart;
+    
+    authLogger.info({
+      action: "token_generated",
+      email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
+      userId: user.id,
+      duration: tokenGenerateDuration,
+      timestamp: new Date().toISOString()
+    }, `Token generated in ${tokenGenerateDuration}ms`);
+    
+    const duration = Date.now() - startTime;
+    const endMemory = process.memoryUsage();
+    
+    authLogger.info({
+      action: "signin_success",
+      email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
+      userId: user.id,
+      userRole: user.role,
+      duration,
+      memoryDelta: {
+        heapUsed: endMemory.heapUsed - startMemory.heapUsed,
+        heapTotal: endMemory.heapTotal - startMemory.heapTotal
+      },
+      timestamp: new Date().toISOString()
+    }, `Signin successful for ${email.replace(/(.{2}).*(@.*)/, "$1***$2")} in ${duration}ms`);
+    
     res.json({ token, user: formatUser(user) });
   } catch (error) {
-    console.error("[Auth] Signin error:", error);
+    const duration = Date.now() - startTime;
+    
+    logError(error as Error, {
+      action: "signin_error",
+      email: email ? email.replace(/(.{2}).*(@.*)/, "$1***$2") : undefined,
+      duration,
+      timestamp: new Date().toISOString()
+    });
+    
+    authLogger.error({
+      action: "signin_failed_error",
+      email: email ? email.replace(/(.{2}).*(@.*)/, "$1***$2") : undefined,
+      error: (error as Error).message,
+      duration,
+      timestamp: new Date().toISOString()
+    }, `Signin failed with error after ${duration}ms`);
+    
     res.status(500).json({ 
       error: "Internal server error",
       message: error instanceof Error ? error.message : "Unknown error",
-      type: error instanceof Error ? error.constructor.name : typeof error,
     });
   }
 });
@@ -161,7 +266,6 @@ router.post("/auth/google", async (req, res): Promise<void> => {
 
     const googleClientId = process.env.GOOGLE_CLIENT_ID;
     if (!googleClientId) {
-      console.error("[Auth] GOOGLE_CLIENT_ID not configured");
       res.status(500).json({ error: "Google OAuth not configured on server" });
       return;
     }
@@ -176,14 +280,12 @@ router.post("/auth/google", async (req, res): Promise<void> => {
         audience: googleClientId,
       });
     } catch (error) {
-      console.error("[Auth] Invalid Google token:", error);
       res.status(401).json({ error: "Invalid Google token" });
       return;
     }
 
     const payload = ticket.getPayload();
     if (!payload) {
-      console.error("[Auth] No payload in Google token");
       res.status(401).json({ error: "Invalid Google token payload" });
       return;
     }
@@ -193,23 +295,21 @@ router.post("/auth/google", async (req, res): Promise<void> => {
     const name = payload.name || "Google User";
     const image = payload.picture || "";
 
-    console.log("[Auth] Google OAuth verification successful:", { googleId, email, name });
+    // Check if user exists and get user count in parallel
+    const [existingUser, existingEmail, userCountResult] = await Promise.all([
+      db.select().from(usersTable).where(eq(usersTable.googleId, googleId)).limit(1),
+      db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1),
+      db.select({ userCount: count() }).from(usersTable)
+    ]);
 
-    // Check if user already exists
-    let [user] = await db.select().from(usersTable).where(eq(usersTable.googleId, googleId));
-
-    if (user) {
-      // User exists, log them in
-      console.log("[Auth] Existing Google user logging in:", { id: user.id, email: user.email });
+    if (existingUser.length > 0) {
+      const user = existingUser[0];
       const authToken = generateToken(user.id);
       res.json({ token: authToken, user: formatUser(user) });
       return;
     }
 
-    // Check if email is already used by another account
-    const [existingEmail] = await db.select().from(usersTable).where(eq(usersTable.email, email));
-    if (existingEmail) {
-      console.warn("[Auth] Email already in use with different provider:", email);
+    if (existingEmail.length > 0) {
       res.status(409).json({ 
         error: "Email already in use",
         message: "This email is already registered. Try signing in with your password instead.",
@@ -218,8 +318,7 @@ router.post("/auth/google", async (req, res): Promise<void> => {
     }
 
     // First user becomes ADMIN
-    const [{ userCount }] = await db.select({ userCount: count() }).from(usersTable);
-    const role = userCount === 0 ? "ADMIN" : "USER";
+    const role = userCountResult[0].userCount === 0 ? "ADMIN" : "USER";
 
     // Create new user with Google OAuth
     const userId = nanoid();
@@ -234,13 +333,11 @@ router.post("/auth/google", async (req, res): Promise<void> => {
     }).returning();
 
     if (!newUser) {
-      console.error("[Auth] Failed to create new Google user");
       res.status(500).json({ error: "Failed to create user account" });
       return;
     }
 
     const authToken = generateToken(newUser.id);
-    console.log("[Auth] New Google user created:", { id: newUser.id, email: newUser.email, role });
     res.status(201).json({ token: authToken, user: formatUser(newUser) });
   } catch (error) {
     console.error("[Auth] Google OAuth error:", error);

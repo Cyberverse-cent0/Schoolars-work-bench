@@ -3,7 +3,9 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { requestLogger, cleanupHangingRequests, getActiveRequests } from "./middleware/requestLogger";
 import { inactivityMiddleware, cleanupInactiveUsers } from "./middleware/inactivityMiddleware";
+import { debugMiddleware, createAuthDebugMiddleware, createDbDebugMiddleware, debugLogger } from "./middleware/debugMiddleware";
 
 const app: Express = express();
 
@@ -26,9 +28,15 @@ app.use(
     },
   }),
 );
+app.use(debugMiddleware);
+app.use(createAuthDebugMiddleware());
+app.use(createDbDebugMiddleware());
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Add comprehensive request logging
+app.use(requestLogger);
 
 // Serve static files from public directory
 app.use("/uploads", express.static("public/uploads"));
@@ -53,12 +61,50 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Apply inactivity middleware
 app.use(inactivityMiddleware);
 
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Debug endpoint for monitoring
+app.get("/debug/stats", (req, res) => {
+  const stats = debugLogger.getStats();
+  const activeRequests = getActiveRequests();
+  
+  res.json({
+    ...stats,
+    activeRequests: {
+      count: activeRequests.length,
+      requests: activeRequests
+    },
+    systemInfo: {
+      nodeVersion: process.version,
+      platform: process.platform,
+      memory: process.memoryUsage(),
+      uptime: process.uptime(),
+      pid: process.pid
+    },
+    logging: {
+      logsDir: "./logs",
+      logFiles: ["app.log", "error.log", "auth.log"]
+    }
+  });
+});
+
+// Clear debug logs endpoint
+app.post("/debug/clear", (req, res) => {
+  debugLogger.clear();
+  res.json({ message: "Debug logs cleared" });
+});
+
 // Health check endpoint for debugging
 app.get("/api/health", (_req, res) => {
   res.json({ 
     status: "ok", 
     timestamp: new Date().toISOString(),
-    message: "API server is running" 
+    message: "API server is running",
+    uptime: process.uptime(),
+    memory: process.memoryUsage()
   });
 });
 
@@ -66,6 +112,9 @@ app.use("/api", router);
 
 // Start cleanup interval for inactive users
 setInterval(cleanupInactiveUsers, 60 * 60 * 1000); // Run every hour
+
+// Start cleanup interval for hanging requests
+setInterval(cleanupHangingRequests, 30 * 1000); // Run every 30 seconds
 
 // 404 handler
 app.use((req: Request, res: Response) => {

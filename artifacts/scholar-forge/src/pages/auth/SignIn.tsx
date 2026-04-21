@@ -6,6 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
+import { frontendDebugger, measurePerformance } from "@/utils/debugUtils";
+
+// Google Sign-In types
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        id?: {
+          initialize: (config: { client_id: string; callback: (response: any) => void }) => void;
+          renderButton: (element: HTMLElement, config: any) => void;
+        };
+      };
+    };
+  }
+}
 
 export default function SignIn() {
   const { login } = useAuth();
@@ -63,7 +78,7 @@ export default function SignIn() {
   useEffect(() => {
     // Check if Google Sign-In is available
     const setupGoogle = () => {
-      if (window.google && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+      if (window.google && window.google.accounts && window.google.accounts.id && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
         window.google.accounts.id.initialize({
           client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
           callback: handleGoogleSuccess,
@@ -78,70 +93,77 @@ export default function SignIn() {
           },
         );
         setGoogleAvailable(true);
-        console.log("[SignIn] Google Sign-In SDK initialized");
-      } else if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-        console.warn("[SignIn] VITE_GOOGLE_CLIENT_ID not configured");
       }
     };
 
-    // Use script tag's onload event
+    // Use script tag's onload event with timeout
     const script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
     if (script) {
       if (script.hasAttribute("data-loaded")) {
         setupGoogle();
       } else {
-        script.addEventListener("load", setupGoogle);
-        return () => script.removeEventListener("load", setupGoogle);
+        const timeoutId = setTimeout(() => {
+          // If Google doesn't load within 3 seconds, continue without it
+          setGoogleAvailable(false);
+        }, 3000);
+        
+        script.addEventListener("load", () => {
+          clearTimeout(timeoutId);
+          setupGoogle();
+        });
+        
+        return () => {
+          clearTimeout(timeoutId);
+          script.removeEventListener("load", setupGoogle);
+        };
       }
     }
+    return undefined;
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    try {
-      const payload = { email, password };
-      console.log("[SignIn] Sending request to /api/auth/signin", { email, password: "***" });
-
-      const res = await fetch("/api/auth/signin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      console.log("[SignIn] Response status:", res.status);
-
-      let data;
+    
+    await measurePerformance('signin_submission', async () => {
       try {
-        const text = await res.text();
-        console.log("[SignIn] Response body:", text);
-        data = text ? JSON.parse(text) : { error: "Empty response from server" };
-      } catch (parseErr) {
-        console.error("[SignIn] JSON parse error:", parseErr);
-        data = { error: "Invalid JSON response from server" };
+        frontendDebugger.logAuthAttempt('signin_start', email);
+        
+        const payload = { email, password };
+
+        const res = await fetch("/api/auth/signin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ error: "Authentication failed" }));
+          const error = new Error(errorData.error || `Sign in failed (${res.status})`);
+          frontendDebugger.logAuthAttempt('signin_failed', email, undefined, error.message);
+          throw error;
+        }
+
+        const data = await res.json();
+
+        if (!data.token || !data.user) {
+          const error = new Error("Invalid response from server");
+          frontendDebugger.logAuthAttempt('signin_invalid_response', email, undefined, error.message);
+          throw error;
+        }
+
+        login(data.token, data.user);
+        frontendDebugger.logAuthAttempt('signin_success', email);
+        navigate("/dashboard");
+      } catch (err: any) {
+        const errorMsg = err.message || "An error occurred during sign in";
+        setError(errorMsg);
+        frontendDebugger.logError('signin_error', err, { email });
+      } finally {
+        setLoading(false);
       }
-
-      console.log("[SignIn] Parsed data:", data);
-
-      if (!res.ok) {
-        throw new Error(data.error || data.message || `Sign in failed (${res.status})`);
-      }
-
-      if (!data.token || !data.user) {
-        throw new Error("Invalid response: missing token or user data");
-      }
-
-      console.log("[SignIn] Success! Logged in:", data.user);
-      login(data.token, data.user);
-      navigate("/dashboard");
-    } catch (err: any) {
-      const errorMsg = err.message || "An error occurred during sign in";
-      console.error("[SignIn] Error:", errorMsg);
-      setError(errorMsg);
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   return (
@@ -235,10 +257,6 @@ export default function SignIn() {
               <a href="/signup" className="text-primary hover:underline font-medium">
                 Sign up
               </a>
-            </div>
-            <div className="mt-4 p-3 bg-muted/50 rounded-md text-xs text-muted-foreground">
-              <strong>Demo credentials:</strong><br />
-              admin@scholarforge.io / password123
             </div>
           </CardContent>
         </Card>

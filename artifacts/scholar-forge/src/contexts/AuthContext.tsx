@@ -49,16 +49,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedToken = localStorage.getItem(TOKEN_KEY);
     if (storedToken) {
       setToken(storedToken);
+      // Validate token with timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
       fetch("/api/auth/me", {
         headers: { Authorization: `Bearer ${storedToken}` },
+        signal: controller.signal,
       })
-        .then((r) => r.ok ? r.json() : null)
+        .then((r) => {
+          if (!r.ok) throw new Error('Token invalid');
+          return r.json();
+        })
         .then((u) => {
           if (u) setUser(u);
           else { localStorage.removeItem(TOKEN_KEY); setToken(null); }
         })
-        .catch(() => { localStorage.removeItem(TOKEN_KEY); setToken(null); })
-        .finally(() => setIsLoading(false));
+        .catch(() => { 
+          localStorage.removeItem(TOKEN_KEY); 
+          setToken(null); 
+        })
+        .finally(() => {
+          clearTimeout(timeoutId);
+          setIsLoading(false);
+        });
     } else {
       setIsLoading(false);
     }

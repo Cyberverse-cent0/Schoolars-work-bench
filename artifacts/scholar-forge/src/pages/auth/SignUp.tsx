@@ -93,23 +93,33 @@ export default function SignUp() {
             size: "large",
             text: "signup_with",
             theme: "outline",
+            locale: "en",
           },
         );
         setGoogleAvailable(true);
-        console.log("[SignUp] Google Sign-In SDK initialized");
-      } else if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-        console.warn("[SignUp] VITE_GOOGLE_CLIENT_ID not configured");
       }
     };
 
-    // Use script tag's onload event
+    // Use script tag's onload event with timeout
     const script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
     if (script) {
       if (script.hasAttribute("data-loaded")) {
         setupGoogle();
       } else {
-        script.addEventListener("load", setupGoogle);
-        return () => script.removeEventListener("load", setupGoogle);
+        const timeoutId = setTimeout(() => {
+          // If Google doesn't load within 3 seconds, continue without it
+          setGoogleAvailable(false);
+        }, 3000);
+        
+        script.addEventListener("load", () => {
+          clearTimeout(timeoutId);
+          setupGoogle();
+        });
+        
+        return () => {
+          clearTimeout(timeoutId);
+          script.removeEventListener("load", setupGoogle);
+        };
       }
     }
   }, []);
@@ -118,9 +128,9 @@ export default function SignUp() {
     e.preventDefault();
     setError("");
     setLoading(true);
+    
     try {
       const payload = { name, email, password, institution };
-      console.log("[SignUp] Sending request to /api/auth/signup", payload);
 
       const res = await fetch("/api/auth/signup", {
         method: "POST",
@@ -128,34 +138,21 @@ export default function SignUp() {
         body: JSON.stringify(payload),
       });
 
-      console.log("[SignUp] Response status:", res.status);
-
-      let data;
-      try {
-        const text = await res.text();
-        console.log("[SignUp] Response body:", text);
-        data = text ? JSON.parse(text) : { error: "Empty response from server" };
-      } catch (parseErr) {
-        console.error("[SignUp] JSON parse error:", parseErr);
-        data = { error: "Invalid JSON response from server" };
-      }
-
-      console.log("[SignUp] Parsed data:", data);
-
       if (!res.ok) {
-        throw new Error(data.error || data.message || `Sign up failed (${res.status})`);
+        const errorData = await res.json().catch(() => ({ error: "Registration failed" }));
+        throw new Error(errorData.error || `Sign up failed (${res.status})`);
       }
+
+      const data = await res.json();
 
       if (!data.token || !data.user) {
-        throw new Error("Invalid response: missing token or user data");
+        throw new Error("Invalid response from server");
       }
 
-      console.log("[SignUp] Success! User created:", data.user);
       login(data.token, data.user);
       navigate("/dashboard");
     } catch (err: any) {
       const errorMsg = err.message || "An error occurred during signup";
-      console.error("[SignUp] Error:", errorMsg);
       setError(errorMsg);
     } finally {
       setLoading(false);

@@ -28,6 +28,10 @@ export function verifyToken(token: string): { userId: string } | null {
   }
 }
 
+// Simple in-memory cache for user data (clears every 5 minutes)
+const userCache = new Map<string, { user: any; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -42,10 +46,32 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     return;
   }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, payload.userId));
+  // Check cache first
+  const cached = userCache.get(payload.userId);
+  const now = Date.now();
+  if (cached && (now - cached.timestamp) < CACHE_TTL) {
+    (req as any).user = cached.user;
+    next();
+    return;
+  }
+
+  // Fetch from database if not in cache or cache expired
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, payload.userId)).limit(1);
   if (!user) {
     res.status(401).json({ error: "User not found" });
     return;
+  }
+
+  // Update cache
+  userCache.set(payload.userId, { user, timestamp: now });
+  
+  // Clean up old cache entries periodically
+  if (userCache.size > 100) {
+    for (const [key, value] of userCache.entries()) {
+      if (now - value.timestamp > CACHE_TTL) {
+        userCache.delete(key);
+      }
+    }
   }
 
   (req as any).user = user;

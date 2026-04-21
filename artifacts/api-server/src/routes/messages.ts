@@ -169,4 +169,116 @@ router.get("/messages/conversation/:otherUserId", requireAuth, async (req: Reque
   }
 });
 
+// Get all conversations for current user
+router.get("/messages/conversations", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const currentUser = getCurrentUser(req);
+
+  try {
+    // Get all unique conversation partners
+    const sentMessages = await db.select({
+      userId: directMessagesTable.recipientId,
+      lastMessageAt: directMessagesTable.createdAt,
+      content: directMessagesTable.content,
+      isRead: directMessagesTable.isRead
+    })
+      .from(directMessagesTable)
+      .where(eq(directMessagesTable.senderId, currentUser.id));
+
+    const receivedMessages = await db.select({
+      userId: directMessagesTable.senderId,
+      lastMessageAt: directMessagesTable.createdAt,
+      content: directMessagesTable.content,
+      isRead: directMessagesTable.isRead
+    })
+      .from(directMessagesTable)
+      .where(eq(directMessagesTable.recipientId, currentUser.id));
+
+    // Combine and get unique conversation partners
+    const allConversations = [...sentMessages, ...receivedMessages];
+    const uniqueUsers = new Map();
+
+    for (const conv of allConversations) {
+      const existing = uniqueUsers.get(conv.userId);
+      if (!existing || new Date(conv.lastMessageAt) > new Date(existing.lastMessageAt)) {
+        uniqueUsers.set(conv.userId, conv);
+      }
+    }
+
+    // Get user details for each conversation partner
+    const conversations = await Promise.all(
+      Array.from(uniqueUsers.entries()).map(async ([userId, lastMsg]) => {
+        const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+        
+        if (!user) return null;
+
+        // Check access control: scholars can only see conversations with admins
+        if (currentUser.role === "SCHOLAR" && user.role !== "ADMIN") {
+          return null;
+        }
+
+        // Count unread messages
+        const unreadCount = await db.select({ count: directMessagesTable.id })
+          .from(directMessagesTable)
+          .where(
+            and(
+              eq(directMessagesTable.senderId, userId),
+              eq(directMessagesTable.recipientId, currentUser.id),
+              eq(directMessagesTable.isRead, "false")
+            )
+          );
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          role: user.role,
+          lastMessage: lastMsg.content,
+          lastMessageAt: lastMsg.lastMessageAt,
+          unreadCount: unreadCount.length,
+          isFromMe: sentMessages.some(m => m.userId === userId && m.lastMessageAt === lastMsg.lastMessageAt)
+        };
+      })
+    );
+
+    // Filter out null results and sort by last message time
+    const validConversations = conversations
+      .filter(conv => conv !== null)
+      .sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
+
+    res.json(validConversations);
+  } catch (error) {
+    console.error("Error fetching conversations:", error);
+    res.status(500).json({ error: "Failed to fetch conversations" });
+  }
+});
+
+// Get list of admins for scholars to contact
+router.get("/messages/admins", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const currentUser = getCurrentUser(req);
+
+  // Only scholars can access this endpoint
+  if (currentUser.role !== "SCHOLAR") {
+    res.status(403).json({ error: "Access denied" });
+    return;
+  }
+
+  try {
+    const admins = await db.select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      image: usersTable.image,
+      role: usersTable.role
+    })
+      .from(usersTable)
+      .where(eq(usersTable.role, "ADMIN"));
+
+    res.json(admins);
+  } catch (error) {
+    console.error("Error fetching admins:", error);
+    res.status(500).json({ error: "Failed to fetch admins" });
+  }
+});
+
 export default router;
