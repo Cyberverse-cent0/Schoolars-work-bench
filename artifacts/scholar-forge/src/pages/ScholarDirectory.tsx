@@ -25,9 +25,16 @@ interface Scholar {
   projectCount?: number;
 }
 
+interface MessagePanelState {
+  isOpen: boolean;
+  recipientId: string;
+  recipientName: string;
+  recipientImage?: string | null;
+}
+
 export default function ScholarDirectory() {
   const [search, setSearch] = useState("");
-  const [messagePanel, setMessagePanel] = useState<{ isOpen: boolean; recipientId: string; recipientName: string; recipientImage?: string | null }>({
+  const [messagePanel, setMessagePanel] = useState<MessagePanelState>({
     isOpen: false,
     recipientId: "",
     recipientName: "",
