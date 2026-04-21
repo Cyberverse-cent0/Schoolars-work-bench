@@ -14,6 +14,8 @@ import analyticsRouter from "./analytics";
 import adminRouter from "./admin";
 import notificationsRouter from "./notifications";
 import storageRouter from "./storage";
+import uploadRouter from "./upload";
+import userManagementRouter from "./user-management";
 
 const router: IRouter = Router();
 
@@ -32,5 +34,7 @@ router.use(analyticsRouter);
 router.use(adminRouter);
 router.use(notificationsRouter);
 router.use(storageRouter);
+router.use(uploadRouter);
+router.use(userManagementRouter);
 
 export default router;

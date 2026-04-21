@@ -109,14 +109,39 @@ router.post("/projects", requireAuth, async (req, res): Promise<void> => {
   }
 
   const id = nanoid();
+  // Parse keywords from comma-separated string to array
+  const keywordsArray = keywords 
+    ? (Array.isArray(keywords) ? keywords : keywords.split(',').map(k => k.trim()).filter(k => k))
+    : [];
+  
+  // Map frontend status to database enum values
+  const statusMap: Record<string, string> = {
+    "PLANNING": "DRAFT",
+    "DRAFT": "DRAFT", 
+    "ONGOING": "ONGOING",
+    "IN_PROGRESS": "ONGOING",
+    "COMPLETED": "COMPLETED",
+    "SEEKING_COLLABORATORS": "SEEKING_COLLABORATORS"
+  };
+  
+  // Map frontend visibility to database enum values
+  const visibilityMap: Record<string, string> = {
+    "PUBLIC": "PUBLIC",
+    "PRIVATE": "PRIVATE",
+    "INVITE_ONLY": "INVITE_ONLY"
+  };
+  
+  const normalizedStatus = statusMap[status?.toUpperCase()] || "DRAFT";
+  const normalizedVisibility = visibilityMap[visibility?.toUpperCase()] || "PRIVATE";
+  
   const [project] = await db.insert(projectsTable).values({
     id,
     title,
     description,
     abstract: abstract || null,
-    keywords: keywords || [],
-    status: status || "DRAFT",
-    visibility: visibility || "PRIVATE",
+    keywords: keywordsArray,
+    status: normalizedStatus,
+    visibility: normalizedVisibility,
     startDate: startDate ? new Date(startDate) : null,
     endDate: endDate ? new Date(endDate) : null,
   }).returning();

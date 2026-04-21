@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiFetch } from "@/hooks/useApi";
 import { Badge } from "@/components/ui/badge";
+import { ProfilePictureUpload } from "@/components/ProfilePictureUpload";
 
 export default function Account() {
   const { user, updateUser } = useAuth();
@@ -85,16 +86,19 @@ export default function Account() {
       {/* Profile Card */}
       <Card className="border-border">
         <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-lg font-semibold text-primary">{user?.name?.charAt(0)}</span>
-            </div>
+          <div className="flex items-center gap-4">
+            <ProfilePictureUpload
+              currentImage={user?.image}
+              onImageUpdate={(imageUrl) => updateUser({ ...user!, image: imageUrl })}
+              size="lg"
+            />
             <div>
               <CardTitle className="text-base">{user?.name}</CardTitle>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-xs text-muted-foreground">{user?.email}</span>
                 <Badge variant="secondary" className="text-xs">{user?.role}</Badge>
               </div>
+              <p className="text-xs text-muted-foreground mt-1">Click to change profile picture</p>
             </div>
           </div>
         </CardHeader>

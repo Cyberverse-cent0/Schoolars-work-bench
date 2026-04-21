@@ -20,42 +20,6 @@ export default function SignUp() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleAvailable, setGoogleAvailable] = useState(false);
 
-  useEffect(() => {
-    // Check if Google Sign-In is available
-    const setupGoogle = () => {
-      if (window.google && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-        window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-          callback: handleGoogleSuccess,
-        });
-        window.google.accounts.id.renderButton(
-          document.getElementById("google-signup-button")!,
-          {
-            type: "standard",
-            size: "large",
-            text: "signup_with",
-            theme: "outline",
-          },
-        );
-        setGoogleAvailable(true);
-        console.log("[SignUp] Google Sign-In SDK initialized");
-      } else if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-        console.warn("[SignUp] VITE_GOOGLE_CLIENT_ID not configured");
-      }
-    };
-
-    // Use script tag's onload event
-    const script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-    if (script) {
-      if (script.hasAttribute("data-loaded")) {
-        setupGoogle();
-      } else {
-        script.addEventListener("load", setupGoogle);
-        return () => script.removeEventListener("load", setupGoogle);
-      }
-    }
-  }, [handleGoogleSuccess]);
-
   const handleGoogleSuccess = async (response: any) => {
     setGoogleLoading(true);
     setError("");
@@ -113,6 +77,42 @@ export default function SignUp() {
       );
     }
   };
+
+  useEffect(() => {
+    // Check if Google Sign-In is available
+    const setupGoogle = () => {
+      if (window.google && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+        window.google.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          callback: handleGoogleSuccess,
+        });
+        window.google.accounts.id.renderButton(
+          document.getElementById("google-signup-button")!,
+          {
+            type: "standard",
+            size: "large",
+            text: "signup_with",
+            theme: "outline",
+          },
+        );
+        setGoogleAvailable(true);
+        console.log("[SignUp] Google Sign-In SDK initialized");
+      } else if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+        console.warn("[SignUp] VITE_GOOGLE_CLIENT_ID not configured");
+      }
+    };
+
+    // Use script tag's onload event
+    const script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+    if (script) {
+      if (script.hasAttribute("data-loaded")) {
+        setupGoogle();
+      } else {
+        script.addEventListener("load", setupGoogle);
+        return () => script.removeEventListener("load", setupGoogle);
+      }
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,7 +1,10 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
-import { requireAuth } from "../lib/auth";
+import { requireAuth, getCurrentUser } from "../lib/auth";
+import { db } from "@workspace/db";
+import { usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -73,6 +76,46 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     }
     req.log.error({ err: error }, "Error serving object");
     res.status(500).json({ error: "Failed to serve object" });
+  }
+});
+
+// Profile picture upload endpoint
+router.post("/storage/profile-picture", requireAuth, async (req: Request, res: Response) => {
+  const { name, size, contentType } = req.body;
+  const user = getCurrentUser(req);
+
+  // Validate file type (only images)
+  if (!contentType || !contentType.startsWith("image/")) {
+    res.status(400).json({ error: "Only image files are allowed" });
+    return;
+  }
+
+  // Validate file size (max 5MB)
+  if (!size || size > 5 * 1024 * 1024) {
+    res.status(400).json({ error: "File size must be less than 5MB" });
+    return;
+  }
+
+  try {
+    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+    const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+    const objectURL = `/api/storage/objects${objectPath.replace(/^\/objects/, "")}`;
+
+    // Update user's profile picture URL in database
+    await db.update(usersTable)
+      .set({ image: objectURL, updatedAt: new Date() })
+      .where(eq(usersTable.id, user.id));
+
+    res.json({ 
+      uploadURL, 
+      objectPath, 
+      objectURL, 
+      metadata: { name, size, contentType },
+      profilePictureUrl: objectURL
+    });
+  } catch (error) {
+    req.log.error({ err: error }, "Error generating profile picture upload URL");
+    res.status(500).json({ error: "Failed to generate upload URL" });
   }
 });
 

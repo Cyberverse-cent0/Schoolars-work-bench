@@ -67,16 +67,25 @@ export function Sidebar() {
           <Link key={item.to} to={item.to} onClick={() => setMobileOpen(false)}>
             <div
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer group relative",
                 isActive(item.to)
                   ? "bg-sidebar-primary/20 text-sidebar-primary"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                 collapsed && "justify-center px-2"
               )}
               data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+              title={collapsed ? item.label : undefined}
             >
               <item.icon className="w-4 h-4 flex-shrink-0" />
-              {!collapsed && item.label}
+              {!collapsed && (
+                <span className="truncate">{item.label}</span>
+              )}
+              {/* Tooltip when collapsed */}
+              {collapsed && (
+                <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                  <span className="text-xs font-medium">{item.label}</span>
+                </div>
+              )}
             </div>
           </Link>
         ))}
@@ -86,16 +95,25 @@ export function Sidebar() {
         <Link to="/account" onClick={() => setMobileOpen(false)}>
           <div
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer",
+              "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer group relative",
               isActive("/account")
                 ? "bg-sidebar-primary/20 text-sidebar-primary"
                 : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
               collapsed && "justify-center px-2"
             )}
             data-testid="nav-account"
+            title={collapsed ? "Account" : undefined}
           >
             <User className="w-4 h-4 flex-shrink-0" />
-            {!collapsed && "Account"}
+            {!collapsed && (
+              <span className="truncate">Account</span>
+            )}
+            {/* Tooltip when collapsed */}
+            {collapsed && (
+              <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                <span className="text-xs font-medium">Account</span>
+              </div>
+            )}
           </div>
         </Link>
 
@@ -103,16 +121,25 @@ export function Sidebar() {
           <Link to="/admin" onClick={() => setMobileOpen(false)}>
             <div
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer group relative",
                 isActive("/admin")
                   ? "bg-sidebar-primary/20 text-sidebar-primary"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                 collapsed && "justify-center px-2"
               )}
               data-testid="nav-admin"
+              title={collapsed ? "Admin Panel" : undefined}
             >
               <Shield className="w-4 h-4 flex-shrink-0" />
-              {!collapsed && "Admin Panel"}
+              {!collapsed && (
+                <span className="truncate">Admin Panel</span>
+              )}
+              {/* Tooltip when collapsed */}
+              {collapsed && (
+                <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                  <span className="text-xs font-medium">Admin Panel</span>
+                </div>
+              )}
             </div>
           </Link>
         )}
@@ -122,10 +149,18 @@ export function Sidebar() {
       <div className="border-t border-sidebar-border p-3">
         {!collapsed ? (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-sidebar-primary/30 flex items-center justify-center flex-shrink-0">
-              <span className="text-xs font-semibold text-sidebar-primary">
-                {user?.name?.charAt(0).toUpperCase()}
-              </span>
+            <div className="w-8 h-8 rounded-full bg-sidebar-primary/30 flex items-center justify-center flex-shrink-0 overflow-hidden">
+              {user?.image ? (
+                <img 
+                  src={user.image} 
+                  alt={user.name} 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-xs font-semibold text-sidebar-primary">
+                  {user?.name?.charAt(0).toUpperCase()}
+                </span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-sidebar-foreground truncate">{user?.name}</p>
@@ -140,12 +175,35 @@ export function Sidebar() {
             </button>
           </div>
         ) : (
-          <button
-            onClick={logout}
-            className="w-full flex justify-center p-2 rounded-md text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          <div className="space-y-2">
+            {/* User avatar when collapsed */}
+            <div className="flex justify-center">
+              <div 
+                className="w-8 h-8 rounded-full bg-sidebar-primary/30 flex items-center justify-center flex-shrink-0 overflow-hidden cursor-pointer hover:bg-sidebar-accent/50 transition-colors"
+                title={user?.name || "User"}
+              >
+                {user?.image ? (
+                  <img 
+                    src={user.image} 
+                    alt={user.name} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-xs font-semibold text-sidebar-primary">
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+            </div>
+            {/* Logout button when collapsed */}
+            <button
+              onClick={logout}
+              className="w-full flex justify-center p-2 rounded-md text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -183,16 +241,33 @@ export function Sidebar() {
       {/* Desktop sidebar */}
       <div
         className={cn(
-          "hidden md:flex flex-col h-full bg-sidebar transition-all duration-300",
+          "hidden md:flex flex-col h-full bg-sidebar transition-all duration-300 ease-in-out",
           collapsed ? "w-16" : "w-64"
         )}
       >
+        {/* Collapse/Expand button */}
         <button
-          className="absolute -right-3 top-20 z-10 w-6 h-6 bg-card border border-border rounded-full flex items-center justify-center shadow-sm hover:bg-accent transition-colors"
+          className={cn(
+            "absolute -right-3 top-20 z-10 flex items-center justify-center shadow-sm transition-all duration-200",
+            collapsed 
+              ? "w-8 h-8 bg-card border border-border rounded-full hover:bg-accent hover:scale-105" 
+              : "w-6 h-6 bg-card/80 backdrop-blur-sm border border-border/50 rounded-full hover:bg-accent/80 hover:scale-105"
+          )}
           onClick={() => setCollapsed(!collapsed)}
           data-testid="button-collapse-sidebar"
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+          {collapsed ? (
+            <ChevronRight className="w-4 h-4 text-sidebar-foreground" />
+          ) : (
+            <ChevronLeft className="w-3 h-3 text-sidebar-foreground/70" />
+          )}
+          {/* Tooltip when collapsed */}
+          {collapsed && (
+            <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground rounded shadow-md opacity-0 hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+              <span className="text-xs font-medium">Expand</span>
+            </div>
+          )}
         </button>
         <SidebarContent />
       </div>

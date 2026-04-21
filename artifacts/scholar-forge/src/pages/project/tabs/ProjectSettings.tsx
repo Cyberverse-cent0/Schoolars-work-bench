@@ -121,7 +121,7 @@ export function ProjectSettings({ project, onUpdate }: Props) {
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="DRAFT">Draft</SelectItem>
+                    <SelectItem value="UNASSIGNED">Unassigned</SelectItem>
                     <SelectItem value="ONGOING">Ongoing</SelectItem>
                     <SelectItem value="SEEKING_COLLABORATORS">Seeking Collaborators</SelectItem>
                     <SelectItem value="COMPLETED">Completed 🎉</SelectItem>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, FolderOpen, Activity, Shield, Trash2, ChevronDown } from "lucide-react";
+import { Users, FolderOpen, Activity, Shield, Trash2, ChevronDown, Settings } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -97,9 +97,15 @@ export default function Admin() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-serif font-semibold text-foreground">Admin Panel</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Platform management and analytics</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-serif font-semibold text-foreground">Admin Panel</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Platform management and analytics</p>
+        </div>
+        <Button onClick={() => navigate("/admin/users")} className="gap-2">
+          <Settings className="w-4 h-4" />
+          User Management
+        </Button>
       </div>
 
       {/* Stats */}

@@ -40,6 +40,7 @@ sleep 3
 echo "🎨 Starting frontend development server..."
 export VITE_API_URL="http://localhost:8080"
 export BASE_PATH="/"
+export PORT=5173
 pnpm --filter @workspace/scholar-forge run dev &
 FRONTEND_PID=$!
 

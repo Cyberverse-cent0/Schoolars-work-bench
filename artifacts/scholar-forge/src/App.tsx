@@ -16,6 +16,8 @@ import ProjectDetail from "@/pages/project/ProjectDetail";
 import Account from "@/pages/Account";
 import Admin from "@/pages/Admin";
 import ScholarDirectory from "@/pages/ScholarDirectory";
+import UserManagement from "@/pages/admin/UserManagement";
+import PublicProfile from "@/pages/PublicProfile";
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
@@ -101,8 +103,10 @@ function Router() {
       <Route path="/projects" component={() => <ProtectedRoute component={Projects} />} />
       <Route path="/projects/create" component={() => <ProtectedRoute component={CreateProject} />} />
       <Route path="/projects/:id" component={() => <ProtectedRoute component={ProjectDetail} />} />
+      <Route path="/profile/:userId" component={() => <ProtectedRoute component={PublicProfile} />} />
       <Route path="/account" component={() => <ProtectedRoute component={Account} />} />
       <Route path="/admin" component={() => <ProtectedRoute component={Admin} />} />
+      <Route path="/admin/users" component={() => <ProtectedRoute component={UserManagement} />} />
       <Route path="/scholars" component={() => <ProtectedRoute component={ScholarDirectory} />} />
       <Route component={NotFound} />
     </Switch>

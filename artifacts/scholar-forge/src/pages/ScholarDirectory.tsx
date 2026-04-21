@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { Search, GraduationCap, BookOpen, User, Circle } from "lucide-react";
+import { Search, GraduationCap, BookOpen, User, Circle, ExternalLink } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useQuery } from "@/hooks/useApi";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSocket } from "@/contexts/SocketContext";
 import { motion } from "framer-motion";
+import { Link } from "wouter";
 
 interface Scholar {
   id: string;
@@ -19,6 +21,7 @@ interface Scholar {
   role: string;
   isOnline: boolean;
   createdAt: string;
+  projectCount?: number;
 }
 
 export default function ScholarDirectory() {
@@ -132,6 +135,19 @@ export default function ScholarDirectory() {
                         </p>
                       </div>
                     )}
+                    
+                    {/* Project count and actions */}
+                    <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+                      <div className="text-xs text-muted-foreground">
+                        {scholar.projectCount || 0} {scholar.projectCount === 1 ? 'project' : 'projects'}
+                      </div>
+                      <Link href={`/profile/${scholar.id}`}>
+                        <Button variant="outline" size="sm" className="text-xs h-6">
+                          <ExternalLink className="w-3 h-3 mr-1" />
+                          View Profile
+                        </Button>
+                      </Link>
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>
