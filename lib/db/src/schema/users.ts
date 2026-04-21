@@ -18,6 +18,9 @@ export const usersTable = pgTable("users", {
   lastActive: timestamp("last_active", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  // OAuth fields
+  googleId: text("google_id").unique(),
+  oauthProvider: text("oauth_provider"), // 'google', 'github', etc.
 });
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ createdAt: true, updatedAt: true });
