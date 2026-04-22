@@ -135,16 +135,43 @@ router.post("/projects", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  // Enhanced validation
   if (!title || !description) {
     res.status(400).json({ error: "Title and description are required" });
     return;
   }
 
+  if (title.length < 3 || title.length > 200) {
+    res.status(400).json({ error: "Title must be between 3 and 200 characters" });
+    return;
+  }
+
+  if (description.length < 10 || description.length > 2000) {
+    res.status(400).json({ error: "Description must be between 10 and 2000 characters" });
+    return;
+  }
+
+  if (abstract && abstract.length > 5000) {
+    res.status(400).json({ error: "Abstract must not exceed 5000 characters" });
+    return;
+  }
+
   const id = nanoid();
   // Parse keywords from comma-separated string to array
-  const keywordsArray = keywords 
+  const parsedKeywords = keywords 
     ? (Array.isArray(keywords) ? keywords : keywords.split(',').map(k => k.trim()).filter(k => k))
     : [];
+
+  // Enhanced validation for keywords
+  if (parsedKeywords.length > 10) {
+    res.status(400).json({ error: "Maximum 10 keywords allowed" });
+    return;
+  }
+
+  if (parsedKeywords.some(keyword => keyword.length > 50)) {
+    res.status(400).json({ error: "Each keyword must not exceed 50 characters" });
+    return;
+  }
   
   // Map frontend status to database enum values
   const statusMap: Record<string, string> = {
@@ -152,6 +179,7 @@ router.post("/projects", requireAuth, async (req, res): Promise<void> => {
     "DRAFT": "DRAFT", 
     "ONGOING": "ONGOING",
     "IN_PROGRESS": "ONGOING",
+    "ON_HOLD": "ON_HOLD",
     "COMPLETED": "COMPLETED",
     "SEEKING_COLLABORATORS": "SEEKING_COLLABORATORS"
   };
@@ -171,7 +199,7 @@ router.post("/projects", requireAuth, async (req, res): Promise<void> => {
     title,
     description,
     abstract: abstract || null,
-    keywords: keywordsArray,
+    keywords: parsedKeywords,
     status: normalizedStatus,
     visibility: normalizedVisibility,
     startDate: startDate ? new Date(startDate) : null,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,19 +8,29 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { apiFetch } from "@/hooks/useApi";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { PROJECT_TEMPLATES, applyProjectTemplate, type ProjectTemplate } from "@/lib/projectTemplates";
 
 export default function CreateProject() {
   const [, navigate] = useLocation();
-  const [form, setForm] = useState({
+  const [form, setForm] = useLocalStorage('project-draft', {
     title: "",
     description: "",
     status: "PLANNING",
-    visibility: "PUBLIC",
+    visibility: "PRIVATE",
     keywords: "",
     abstract: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  // Auto-save effect
+  useEffect(() => {
+    if (form.title || form.description || form.abstract || form.keywords) {
+      setLastSaved(new Date());
+    }
+  }, [form]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,12 +42,40 @@ export default function CreateProject() {
         method: "POST",
         body: JSON.stringify({ ...form, keywords }),
       });
+      
+      // Clear draft on successful submission
+      setForm({
+        title: "",
+        description: "",
+        status: "PLANNING",
+        visibility: "PRIVATE",
+        keywords: "",
+        abstract: "",
+      });
+      
       navigate(`/projects/${data.id}`);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const clearDraft = () => {
+    setForm({
+      title: "",
+      description: "",
+      status: "PLANNING",
+      visibility: "PRIVATE",
+      keywords: "",
+      abstract: "",
+    });
+    setLastSaved(null);
+  };
+
+  const applyTemplate = (template: ProjectTemplate) => {
+    const templateData = applyProjectTemplate(template);
+    setForm(templateData);
   };
 
   return (
@@ -48,10 +86,54 @@ export default function CreateProject() {
         </Button>
       </div>
 
+      {/* Project Templates */}
       <Card className="border-border">
         <CardHeader>
-          <CardTitle className="text-xl font-serif">Create New Project</CardTitle>
-          <CardDescription>Set up a new collaborative research project</CardDescription>
+          <CardTitle className="text-lg font-serif">Start with a Template</CardTitle>
+          <CardDescription>Choose a template to pre-fill common project structures</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {PROJECT_TEMPLATES.map((template) => (
+              <div
+                key={template.id}
+                className="p-3 border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                onClick={() => applyTemplate(template)}
+              >
+                <h4 className="font-medium text-sm">{template.name}</h4>
+                <p className="text-xs text-muted-foreground mt-1">{template.description}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl font-serif">Create New Project</CardTitle>
+              <CardDescription>Set up a new collaborative research project</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              {lastSaved && (
+                <div className="text-xs text-muted-foreground">
+                  Last saved: {lastSaved.toLocaleTimeString()}
+                </div>
+              )}
+              {(form.title || form.description || form.abstract || form.keywords) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={clearDraft}
+                  className="text-xs"
+                >
+                  Clear Draft
+                </Button>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -122,7 +204,7 @@ export default function CreateProject() {
                   <SelectContent>
                     <SelectItem value="PUBLIC">Public</SelectItem>
                     <SelectItem value="PRIVATE">Private</SelectItem>
-                    <SelectItem value="INSTITUTION">Institution</SelectItem>
+                    <SelectItem value="INVITE_ONLY">Invite Only</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
