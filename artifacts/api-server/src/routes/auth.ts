@@ -34,7 +34,12 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
     }
 
     // Check if user exists
-    const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+    const [existing] = await db.select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      role: usersTable.role
+    }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
     
     if (existing && existing.length > 0) {
       res.status(409).json({ error: "Email already in use" });
@@ -48,23 +53,35 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
     const passwordHash = hashPassword(password);
     const id = nanoid();
 
-    const [user] = await db.insert(usersTable).values({
+    const [newUser] = await db.insert(usersTable).values({
       id,
       name,
       email,
       passwordHash,
-      institution: institution || null,
-      researchInterests: researchInterests || null,
+      institution,
+      researchInterests,
       role,
-    }).returning();
+    }).returning({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      role: usersTable.role,
+      institution: usersTable.institution,
+      researchInterests: usersTable.researchInterests,
+      bio: usersTable.bio,
+      image: usersTable.image,
+      createdAt: usersTable.createdAt,
+      updatedAt: usersTable.updatedAt,
+      lastActive: usersTable.lastActive,
+    });
 
-    if (!user) {
+    if (!newUser) {
       res.status(500).json({ error: "Failed to create user" });
       return;
     }
 
-    const token = generateToken(user.id);
-    res.status(201).json({ token, user: formatUser(user) });
+    const token = generateToken(newUser.id);
+    res.status(201).json({ token, user: formatUser(newUser) });
   } catch (error) {
     console.error("[Auth] Signup error:", error);
     res.status(500).json({ 

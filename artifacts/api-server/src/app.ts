@@ -3,6 +3,8 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import authRouter from "./routes/auth";
 import simpleTestRouter from "./routes/simple-test";
+import usersRouter from "./routes/users";
+import uploadRouter from "./routes/upload";
 // import testDbRouter from "./routes/test-db";
 import { logger } from "./lib/logger";
 import { requestLogger, cleanupHangingRequests, getActiveRequests } from "./middleware/requestLogger";
@@ -113,6 +115,8 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api", authRouter);
 app.use("/api", simpleTestRouter);
+app.use("/api", usersRouter);
+app.use("/api", uploadRouter);
 
 // Start cleanup interval for inactive users
 // setInterval(cleanupInactiveUsers, 60 * 60 * 1000); // Run every hour

@@ -3,7 +3,7 @@ import { requireAuth, getCurrentUser } from "../lib/auth";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, readFile } from "fs/promises";
 import { join } from "path";
 import { nanoid } from "../lib/nanoid";
 import multer from "multer";
@@ -88,11 +88,25 @@ router.post("/upload/profile-picture", requireAuth, (req: Request, res: Response
   });
 });
 
-// Serve uploaded files (placeholder implementation)
+// Serve uploaded files
 router.get("/uploads/profiles/:filename", async (req: Request, res: Response) => {
-  // For now, return a placeholder image
-  // In a real implementation, you would serve the actual uploaded file
-  res.status(404).json({ error: "File not found" });
+  try {
+    const { filename } = req.params;
+    const filePath = join(process.cwd(), "public", "uploads", "profiles", filename);
+    
+    // Read the file
+    const fileBuffer = await readFile(filePath);
+    
+    // Set appropriate headers
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("Cache-Control", "public, max-age=31536000"); // Cache for 1 year
+    
+    // Send the file
+    res.send(fileBuffer);
+  } catch (error) {
+    console.error("Error serving profile picture:", error);
+    res.status(404).json({ error: "File not found" });
+  }
 });
 
 export default router;

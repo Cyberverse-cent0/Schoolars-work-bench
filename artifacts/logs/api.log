@@ -1,0 +1,64 @@
+
+> @workspace/api-server@0.0.0 start
+> node --enable-source-maps ./dist/index.mjs
+
+node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4500
+    at Server.setupListenHandle [as _listen2] (node:net:2008:16)
+    at listenInCluster (node:net:2065:12)
+    at Server.listen (node:net:2170:7)
+    at <anonymous> (/home/codecrafter/Downloads/School-Work-Bench/artifacts/api-server/src/index.ts:18:12)
+    at ModuleJob.run (node:internal/modules/esm/module_job:437:25)
+    at async node:internal/modules/esm/loader:639:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:2044:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EA[DEBUG] GET /api/health {
+  headers: {
+    host: 'localhost:4500',
+    'user-agent': 'curl/8.19.0',
+    accept: '*/*'
+  },
+  body: undefined
+}
+[DEBUG] Response to GET /api/health {
+  status: 200,
+  data: '{"status":"ok","timestamp":"2026-04-22T11:26:23.708Z","message":"API server is running","uptime":23.634962427,"memory":{"rss":134230016,"heapTotal":39751680,"heapUsed":31011480,"external":13527340,"arrayBuffers":7456098}}'
+}
+[14:26:23.709] [32mINFO[39m (63947): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 2,
+      "method": "GET",
+      "url": "/api/health"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 1
+[DEBUG] GET / {
+  headers: {
+    host: 'localhost:4500',
+    'user-agent': 'curl/8.19.0',
+    accept: '*/*'
+  },
+  body: undefined
+}
+[ERROR] 404 Not Found: GET /
+[DEBUG] Response to GET / {
+  status: 404,
+  data: '{"error":"Not Found","message":"No route found for GET /","path":"/","method":"GET","availableEndpoints":["GET /api/health","POST /api/auth/signup","POST /api/auth/signin","POST /api/auth/signout","GET /api/auth/me"]}'
+}
+[14:26:33.723] [32mINFO[39m (63947): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 3,
+      "method": "GET",
+      "url": "/"
+    }
+    [35mres[39m: {
+      "statusCode": 404
+    }
+    [35mresponseTime[39m: 1
