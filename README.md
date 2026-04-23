@@ -298,6 +298,19 @@ This project is licensed under the MIT License. See LICENSE file for details.
 3. Make your changes
 4. Test thoroughly
 5. Submit a pull request
+
+## 📚 Developer Documentation
+
+For detailed development information, see [DEVELOPER.md](DEVELOPER.md) which includes:
+
+- Complete development environment setup
+- Code organization and architecture
+- Testing guidelines
+- Code quality standards
+- Database management
+- Deployment procedures
+- Troubleshooting guide
+- Security best practices
 6. Follow coding standards and best practices
 
 ---
