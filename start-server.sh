@@ -64,6 +64,9 @@ start_api_server() {
     API_PID=$!
     echo "API server started with PID: $API_PID"
     
+    # Change back to script directory
+    cd "$SCRIPT_DIR"
+    
     # Wait for API server to start
     echo "Waiting for API server to start..."
     sleep 5
@@ -82,7 +85,10 @@ start_api_server() {
 start_frontend() {
     echo "Starting frontend..."
     local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    cd "$SCRIPT_DIR/../artifacts/scholar-forge"
+    cd "$SCRIPT_DIR/artifacts/scholar-forge"
+    
+    # Create logs directory
+    mkdir -p logs
     
     # Install dependencies if needed
     if [ ! -d "node_modules" ]; then
